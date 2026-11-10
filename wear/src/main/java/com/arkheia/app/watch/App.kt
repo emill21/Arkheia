@@ -59,6 +59,8 @@ import androidx.wear.compose.material.ToggleChip
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import androidx.wear.compose.navigation.rememberSwipeDismissableNavHostState
+import androidx.wear.compose.foundation.rememberSwipeToDismissBoxState
 import com.arkheia.app.Analysis
 import com.arkheia.app.BuildConfig
 import com.arkheia.app.Clip
@@ -90,6 +92,8 @@ object Route {
     fun text(f: File) = "text/${enc(f.path)}"
     fun image(f: File) = "image/${enc(f.path)}"
     fun audio(f: File) = "audio/${enc(f.path)}"
+    fun video(f: File) = "video/${enc(f.path)}"
+    fun gallery(f: File) = "gallery/${enc(f.path)}"
     /** Is this folder the screen on top right now? */
     fun isCurrentFolder(nav: NavHostController, f: File): Boolean {
         val top = nav.currentBackStackEntry ?: return false
@@ -107,12 +111,13 @@ fun NavHostController.view(c: Context, f: File) {
         Kind.Image -> navigate(Route.image(f))
         Kind.Text -> navigate(Route.text(f))
         Kind.Audio -> navigate(Route.audio(f))
+        Kind.Video -> navigate(Route.video(f))
         Kind.Apk -> Fs.install(c, f)
         else -> Fs.openWith(c, f)
     }
 }
 
-fun viewsInApp(kind: Kind) = kind == Kind.Image || kind == Kind.Text || kind == Kind.Audio
+fun viewsInApp(kind: Kind) = kind == Kind.Image || kind == Kind.Text || kind == Kind.Audio || kind == Kind.Video
 
 @Composable
 fun ArkheiaApp(openRequest: String?, onOpened: () -> Unit, onReplayTour: () -> Unit, onWhatsNew: () -> Unit) {
@@ -134,7 +139,11 @@ fun ArkheiaApp(openRequest: String?, onOpened: () -> Unit, onReplayTour: () -> U
         onOpened()
     }
 
-    SwipeDismissableNavHost(navController = nav, startDestination = Route.HOME) {
+    // Shared with the photo viewer, which only lets you swipe back from the edge (the rest swipes photos).
+    val swipe = rememberSwipeToDismissBoxState()
+    val navState = rememberSwipeDismissableNavHostState(swipeToDismissBoxState = swipe)
+
+    SwipeDismissableNavHost(navController = nav, startDestination = Route.HOME, state = navState) {
         composable(Route.HOME) { HomeScreen(nav) }
         composable(Route.SETTINGS) { SettingsScreen(onReplayTour, onWhatsNew) }
         composable(Route.STORAGE) { StorageScreen(nav) }
@@ -142,12 +151,14 @@ fun ArkheiaApp(openRequest: String?, onOpened: () -> Unit, onReplayTour: () -> U
         composable("folder/{p}") { FolderScreen(File(dec(it.arguments?.getString("p").orEmpty())), nav) }
         composable("item/{p}") { ItemScreen(File(dec(it.arguments?.getString("p").orEmpty())), nav) }
         composable("text/{p}") { TextScreen(File(dec(it.arguments?.getString("p").orEmpty()))) }
-        composable("image/{p}") { ImageScreen(File(dec(it.arguments?.getString("p").orEmpty()))) }
+        composable("image/{p}") { PhotoScreen(File(dec(it.arguments?.getString("p").orEmpty())), swipe) }
+        composable("video/{p}") { VideoScreen(File(dec(it.arguments?.getString("p").orEmpty()))) }
+        composable("gallery/{p}") { GalleryScreen(File(dec(it.arguments?.getString("p").orEmpty())), nav) }
         composable("audio/{p}") { AudioScreen(File(dec(it.arguments?.getString("p").orEmpty()))) }
     }
 }
 
-/** Re-checks All files access every second or so while it's off. */
+/** Re-checks file access every second or so while it's off. */
 @Composable
 fun rememberAccess(): Boolean {
     var a by remember { mutableStateOf(Fs.hasAccess()) }
@@ -439,8 +450,8 @@ fun SetupScreen(onDone: () -> Unit) {
                 item { PageTitle("Allow file access") }
                 item {
                     Caption(
-                        if (access) "All files access is on. You're set."
-                        else "To show every folder, Arkheia needs All files access. Nothing ever leaves your watch.",
+                        if (access) "File access is on. You're set."
+                        else "To show every folder, Arkheia needs your watch's Files permission. Nothing ever leaves your watch.",
                         color = if (access) Palette.primary else Palette.muted,
                     )
                 }

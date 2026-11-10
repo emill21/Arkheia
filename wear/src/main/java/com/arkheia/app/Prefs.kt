@@ -19,6 +19,7 @@ object Prefs {
     private val _recent = mutableStateOf<List<String>>(emptyList())
 
     fun init(c: Context) {
+        Fs.init(c)
         if (::sp.isInitialized) return
         sp = c.applicationContext.getSharedPreferences("arkheia", Context.MODE_PRIVATE)
         _onboarded.value = sp.getBoolean("onboarded", false)

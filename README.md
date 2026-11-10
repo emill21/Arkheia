@@ -3,7 +3,9 @@
 *ἀρχεῖα: Greek for "archives".* A file explorer for Wear OS: every file on your watch, on your wrist.
 
 - **Browse** every folder, folders first, sorted by name, date, size or type. Hidden files on request.
-- **Open** photos (turn the crown or double-tap to zoom, drag to pan), read text files, play music,
+- **Photos**: swipe through a folder's photos, crown or double-tap to zoom. **Gallery** shows them as thumbnails.
+- **Videos**: full-screen player with a progress ring, 10-second skips and crown scrubbing.
+- **Open** text files, play music,
   install APKs, or hand anything else to another app.
 - **Manage**: copy, move, rename and delete files and folders; make new folders by voice or keyboard.
 - **Storage**: free space at a glance, what's using it by type, and your 15 largest files.
@@ -15,9 +17,8 @@
 2. Install it on the watch: from your phone with **Syndesia** or *Wear Installer 2*, or from a computer with
    Wireless debugging on the watch (**Settings › Developer options › Wireless debugging**):
    `adb pair <ip:port>`, `adb connect <ip:port>`, `adb install Arkheia.apk`.
-3. Open Arkheia and tap **Allow file access**. It opens the switch in your watch's own Settings: turn on
-   *Allow access to manage all files*. If your watch has no such switch, tap **Just photos, videos & music**
-   for the normal Allow pop-up instead.
+3. Open Arkheia and tap **Allow file access**, then **Allow** on the pop-up. That's the watch's own **Files**
+   permission (also in App info › Permissions › Files), and it covers every file.
 
 Every build is signed with the same key (`keystore/`), so updates install over the previous version and keep
 your settings and access.

@@ -134,12 +134,12 @@ fun ItemScreen(file: File, nav: NavHostController) {
             item {
                 ActionChip(
                     when (kind) {
-                        Kind.Audio -> "Play"
+                        Kind.Audio, Kind.Video -> "Play"
                         Kind.Apk -> "Install"
                         else -> "Open"
                     },
                     when (kind) {
-                        Kind.Audio -> Icons.Rounded.PlayArrow
+                        Kind.Audio, Kind.Video -> Icons.Rounded.PlayArrow
                         Kind.Apk -> Icons.Rounded.Android
                         else -> Icons.Rounded.OpenInNew
                     },

@@ -1,92 +1,87 @@
 package com.arkheia.app.watch
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.ActivityCompat
 import androidx.wear.compose.foundation.lazy.ScalingLazyListScope
 import com.arkheia.app.Fs
-import kotlinx.coroutines.delay
 
-/** File access status, and the buttons that ask for it. */
+/** File access status, and the button that asks for it. */
 class AccessUi(
     val context: Context,
     val full: Boolean,
-    val media: Boolean,
-    /** True once we've learned this watch has no All files access page. */
-    val noSwitch: Boolean,
-    val openSwitch: () -> Unit,
-    val askMedia: () -> Unit,
+    /** The pop-up was turned down for good: only App info can change it now. */
+    val blocked: Boolean,
+    val allow: () -> Unit,
 )
+
+private tailrec fun Context.activity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.activity()
+    else -> null
+}
 
 @Composable
 fun rememberAccessUi(): AccessUi {
     val context = LocalContext.current
     val full = rememberAccess()
-    var media by remember { mutableStateOf(Fs.hasMediaAccess(context)) }
-    var noSwitch by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            media = Fs.hasMediaAccess(context)
-            delay(1_200)
-        }
-    }
+    var blocked by remember { mutableStateOf(false) }
     val dialog = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        media = Fs.hasMediaAccess(context)
+        if (!Fs.hasFilesPermission(context)) {
+            val activity = context.activity()
+            // No pop-up shown and no chance to ask again: Android has stopped asking.
+            blocked = activity != null && Fs.filePermissions.none { p -> ActivityCompat.shouldShowRequestPermissionRationale(activity, p) }
+            if (blocked) Fs.toast(context, "Turn on Files in Permissions")
+            if (blocked) Fs.openAppInfo(context)
+        }
+        Fs.changed()
     }
-    val askMedia = { runCatching { dialog.launch(Fs.mediaPermissions) }; Unit }
     return AccessUi(
         context = context,
         full = full,
-        media = media,
-        noSwitch = noSwitch,
-        openSwitch = {
-            when (Fs.openAccessSettings(context)) {
-                Fs.Opened.AllFiles -> Fs.toast(context, "Turn on Allow access to manage all files")
-                Fs.Opened.AppInfo -> {
-                    noSwitch = true
-                    Fs.toast(context, "Look under Permissions › Files")
-                }
-                Fs.Opened.Nothing -> {
-                    // No switch anywhere: go straight to the normal Allow pop-up.
-                    noSwitch = true
-                    askMedia()
-                }
+        blocked = blocked,
+        allow = {
+            if (blocked) {
+                Fs.toast(context, "Turn on Files in Permissions")
+                Fs.openAppInfo(context)
+            } else {
+                runCatching { dialog.launch(Fs.filePermissions) }.onFailure { Fs.openAppInfo(context) }
             }
         },
-        askMedia = askMedia,
     )
 }
 
-/** One button to the watch's own switch, and the Allow pop-up if the watch doesn't have one. */
+/** Ask for the watch's Files permission. */
 fun ScalingLazyListScope.accessSteps(ui: AccessUi) {
     if (ui.full) {
-        item { ActionChip("All files access is on", Icons.Rounded.CheckCircle, {}, tint = Palette.sage) }
+        item { ActionChip("Files permission is on", Icons.Rounded.CheckCircle, {}, tint = Palette.sage) }
         return
     }
     item {
         ActionChip(
-            "Allow file access", Icons.Rounded.Lock, ui.openSwitch,
-            secondary = "Opens the switch in your watch's Settings", primary = true,
+            "Allow file access", Icons.Rounded.Folder, ui.allow,
+            secondary = if (ui.blocked) "Opens App info: Permissions › Files" else "Tap Allow on the pop-up",
+            primary = true,
         )
     }
-    if (ui.media) {
-        item { Caption("Photos, videos and music are allowed. Other files need the switch above.", color = Palette.sage) }
-    } else {
+    if (!ui.blocked) {
         item {
             ActionChip(
-                "Just photos, videos & music", Icons.Rounded.PhotoLibrary, ui.askMedia,
-                secondary = if (ui.noSwitch) "Your watch has no all-files switch: allow these instead" else "Quick Allow pop-up",
+                "Open App info", Icons.Rounded.Settings, { Fs.openAppInfo(ui.context) },
+                secondary = "Or turn on Files under Permissions",
             )
         }
     }

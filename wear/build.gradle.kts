@@ -13,9 +13,11 @@ android {
     defaultConfig {
         applicationId = "com.arkheia.app"
         minSdk = 30
-        targetSdk = 35
-        versionCode = 3
-        versionName = "1.2"
+        // Android 10 target: the last one where the regular "Files" permission covers every file,
+        // which is the permission watches show in App info. (Newer targets only get photos/music.)
+        targetSdk = 29
+        versionCode = 4
+        versionName = "1.3"
     }
 
     val signing = Properties().apply {
@@ -83,6 +85,10 @@ dependencies {
     implementation("androidx.wear.compose:compose-foundation:1.4.0")
     implementation("androidx.wear.compose:compose-navigation:1.4.0")
     implementation("androidx.wear:wear-input:1.1.0")
+
+    // Video player.
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-ui:1.5.1")
 
     implementation("androidx.wear.tiles:tiles:1.4.1")
     implementation("androidx.wear.protolayout:protolayout:1.2.1")

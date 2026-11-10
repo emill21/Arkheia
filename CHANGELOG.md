@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3 · Photos, videos and the Files permission (2026-11-10)
+
+- Uses your watch's Files permission now, so Allow file access covers every file, not just photos and music
+- New photo viewer: swipe between every photo in the folder, turn the crown or double-tap to zoom, drag to look around
+- New video player: tap for controls, a progress ring around the screen, skip 10 seconds, turn the crown to scrub, double-tap to fill the screen
+- New Gallery: every photo and video in a folder as thumbnails
+
 ## 1.2 · File access from Settings (2026-11-10)
 
 - File access is now one button: Allow file access opens the switch in your watch's own Settings

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +30,7 @@ import androidx.wear.compose.material.Text
 import com.arkheia.app.Clip
 import com.arkheia.app.Entry
 import com.arkheia.app.Fs
+import com.arkheia.app.Kind
 import com.arkheia.app.Prefs
 import com.arkheia.app.Sort
 import kotlinx.coroutines.Dispatchers
@@ -125,6 +127,16 @@ fun FolderScreen(dir: File, nav: NavHostController) {
             }
         }
         if (list != null) {
+            val media = list.count { it.kind == Kind.Image || it.kind == Kind.Video }
+            if (media > 0) {
+                item {
+                    ActionChip(
+                        "Gallery", Icons.Rounded.PhotoLibrary, { nav.navigate(Route.gallery(dir)) },
+                        secondary = "$media ${if (media == 1) "photo or video" else "photos and videos"}",
+                        tint = Palette.rose,
+                    )
+                }
+            }
             if (list.isEmpty()) item { Caption("Nothing here yet") }
             items(list, key = { it.path }) { e -> EntryChip(e, { nav.openEntry(e) }) }
         }
