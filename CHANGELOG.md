@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2 · File access from Settings (2026-11-10)
+
+- File access is now one button: Allow file access opens the switch in your watch's own Settings
+- No switch on your watch? Allow photos, videos and music with the normal Allow pop-up instead
+- Removed the Wireless debugging setup, so the app is much smaller again
+
 ## 1.1 · No computer needed (2026-11-10)
 
 - Turn on file access right on the watch, no computer or phone needed: Arkheia pairs with your watch's own Wireless debugging and switches it on for you

@@ -62,24 +62,39 @@ object Fs {
 
     fun hasAccess(): Boolean = Environment.isExternalStorageManager()
 
-    const val ADB_GRANT = "adb shell appops set --uid com.arkheia.app MANAGE_EXTERNAL_STORAGE allow"
+    enum class Opened { AllFiles, AppInfo, Nothing }
 
-    /** Opens the All files access screen. Some watches don't have one; returns false then. */
-    fun openAccessSettings(c: Context): Boolean {
+    /**
+     * Opens the watch's own switch for this: the All files access page for Arkheia, or the
+     * general one, or failing those Arkheia's App info (Permissions › Files on some watches).
+     */
+    fun openAccessSettings(c: Context): Opened {
         val pkg = Uri.parse("package:${c.packageName}")
         val tries = listOf(
-            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, pkg),
-            Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg),
+            Opened.AllFiles to Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, pkg),
+            Opened.AllFiles to Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
+            Opened.AppInfo to Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg),
         )
-        for (i in tries) {
+        for ((kind, i) in tries) {
             try {
                 c.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                return true
+                return kind
             } catch (_: Exception) {
             }
         }
-        return false
+        return Opened.Nothing
+    }
+
+    /** The normal "Allow" pop-up's permissions: photos, videos and music. */
+    val mediaPermissions: Array<String>
+        get() = if (android.os.Build.VERSION.SDK_INT >= 33) arrayOf(
+            android.Manifest.permission.READ_MEDIA_IMAGES,
+            android.Manifest.permission.READ_MEDIA_VIDEO,
+            android.Manifest.permission.READ_MEDIA_AUDIO,
+        ) else arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+
+    fun hasMediaAccess(c: Context): Boolean = mediaPermissions.any {
+        androidx.core.content.ContextCompat.checkSelfPermission(c, it) == android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 
     // ------------------------------------------------------------ Types
@@ -302,7 +317,7 @@ object Fs {
                 )
                 toast(c, "Allow Arkheia to install apps, then tap Install again")
             } catch (e: Exception) {
-                toast(c, "Grant it once from a computer: see Settings › Installing apps")
+                toast(c, "Your watch doesn't let Arkheia install apps")
             }
             return
         }
@@ -312,7 +327,7 @@ object Fs {
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             c.startActivity(i)
         } catch (e: Exception) {
-            toast(c, "Your watch has no installer for this. Use adb or Syndesia instead.")
+            toast(c, "Your watch has no installer for this. Install it with Syndesia instead.")
         }
     }
 

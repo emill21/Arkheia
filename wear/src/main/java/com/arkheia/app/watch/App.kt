@@ -207,7 +207,7 @@ private fun HomeScreen(nav: NavHostController) {
             item {
                 ActionChip(
                     "Allow file access", Icons.Rounded.Lock, { nav.navigate(Route.SETTINGS) },
-                    secondary = "Needed to see your files. No computer needed", primary = true,
+                    secondary = "Needed to see your files", primary = true,
                 )
             }
         }
@@ -371,7 +371,7 @@ private fun SearchScreen(nav: NavHostController) {
 @Composable
 private fun SettingsScreen(onReplayTour: () -> Unit, onWhatsNew: () -> Unit) {
     val access = rememberAccess()
-    val unlock = rememberUnlockUi()
+    val unlock = rememberAccessUi()
     Page {
         item { PageTitle("Settings") }
         item { Section("Browsing") }
@@ -403,15 +403,7 @@ private fun SettingsScreen(onReplayTour: () -> Unit, onWhatsNew: () -> Unit) {
         }
 
         item { Section("File access") }
-        if (access) {
-            item { ActionChip("All files access is on", Icons.Rounded.CheckCircle, {}, tint = Palette.sage) }
-        } else {
-            unlockSteps(unlock)
-        }
-
-        item { Section("Installing apps") }
-        item { Caption("Unlocking file access above also lets Arkheia install APKs. Otherwise allow it when asked, or run:") }
-        item { CommandCard("adb shell appops set com.arkheia.app REQUEST_INSTALL_PACKAGES allow") }
+        accessSteps(unlock)
 
         item { Section("About") }
         item { ActionChip("What's new", Icons.Rounded.NewReleases, onWhatsNew) }
@@ -428,7 +420,7 @@ private fun SettingsScreen(onReplayTour: () -> Unit, onWhatsNew: () -> Unit) {
 @Composable
 fun SetupScreen(onDone: () -> Unit) {
     val access = rememberAccess()
-    val unlock = rememberUnlockUi()
+    val unlock = rememberAccessUi()
     var step by remember { mutableIntStateOf(0) }
     Page {
         item {
@@ -452,7 +444,7 @@ fun SetupScreen(onDone: () -> Unit) {
                         color = if (access) Palette.primary else Palette.muted,
                     )
                 }
-                if (!access) unlockSteps(unlock)
+                if (!access) accessSteps(unlock)
                 item { NextChip(if (access) "Next" else "Skip for now") { step = 2 } }
             }
             else -> {

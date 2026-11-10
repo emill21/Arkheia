@@ -1,13 +1,12 @@
 [
   {
-    "version": "1.1",
+    "version": "1.2",
     "date": "2026-11-10",
-    "title": "No computer needed",
+    "title": "File access from Settings",
     "items": [
-      "Turn on file access right on the watch, no computer or phone needed: Arkheia pairs with your watch's own Wireless debugging and switches it on for you",
-      "Type the pairing code straight into Arkheia's notification, so the code screen in Settings stays open",
-      "Older watches with Debug over Wi-Fi just need you to tap Allow, no code",
-      "Unlocking also lets Arkheia install APKs"
+      "File access is now one button: Allow file access opens the switch in your watch's own Settings",
+      "No switch on your watch? Allow photos, videos and music with the normal Allow pop-up instead",
+      "Removed the Wireless debugging setup, so the app is much smaller again"
     ]
   },
   {
