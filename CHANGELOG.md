@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5 · Liquid (2026-11-10)
+
+- The middle of the home dial is now a liquid orb, like the app icon: it fills up as your storage does, waves gently, and stays level when you tilt your wrist
+- A slow glow turns behind the dial and takes on the colour of whatever you've picked
+- Select several files at once (the tick button in a folder) to copy, move, zip or delete them together
+- Zip files and folders, and unzip .zip files, right on the watch
+- Copying, moving, zipping and deleting show their progress as a ring round the edge of the screen
+- A tap you can feel when a long job finishes
+
 ## 1.4 · Made for the round screen (2026-11-10)
 
 - A whole new look built for the round screen

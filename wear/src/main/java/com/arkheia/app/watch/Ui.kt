@@ -23,6 +23,8 @@ import androidx.compose.material.icons.rounded.FolderZip
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.automirrored.rounded.Article
 import androidx.compose.material.icons.rounded.VideoFile
 import androidx.compose.runtime.Composable
@@ -250,7 +252,7 @@ private val fileChipColors @Composable get() = ChipDefaults.chipColors(
 
 /** A file or folder in a list. */
 @Composable
-fun EntryChip(e: Entry, onClick: () -> Unit, detail: String? = null) {
+fun EntryChip(e: Entry, onClick: () -> Unit, detail: String? = null, selected: Boolean? = null) {
     val locked = e.isDir && e.children < 0
     Chip(
         onClick = onClick,
@@ -262,8 +264,19 @@ fun EntryChip(e: Entry, onClick: () -> Unit, detail: String? = null) {
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        icon = { IconBlob(kindIcon(e.kind, locked), kindTint(e.kind)) },
-        colors = fileChipColors,
+        icon = {
+            when (selected) {
+                true -> IconBlob(Icons.Rounded.CheckCircle, Palette.sage)
+                false -> IconBlob(Icons.Rounded.RadioButtonUnchecked, Palette.muted)
+                null -> IconBlob(kindIcon(e.kind, locked), kindTint(e.kind))
+            }
+        },
+        colors = if (selected == true) ChipDefaults.chipColors(
+            backgroundColor = Color(0xFF2B3424),
+            contentColor = Palette.onSurface,
+            secondaryContentColor = Palette.sage,
+            iconColor = Palette.sage,
+        ) else fileChipColors,
         modifier = Modifier.fillMaxWidth(),
     )
 }

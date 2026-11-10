@@ -17,6 +17,8 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DriveFileRenameOutline
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Unarchive
+import androidx.compose.material.icons.rounded.FolderZip
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PushPin
@@ -167,6 +169,17 @@ fun ItemScreen(file: File, nav: NavHostController) {
             val pinned = Prefs.isPinned(file.path)
             add(RadialItem(if (pinned) "Unpin" else "Pin", Icons.Rounded.PushPin, Palette.sage, if (pinned) "Take off Recent" else "Add to Recent") {
                 Prefs.togglePin(file.path)
+            })
+        }
+        if (file.extension.equals("zip", ignoreCase = true)) {
+            add(RadialItem("Unzip", Icons.Rounded.Unarchive, Palette.muted, "Into a new folder") {
+                Clip.unzip(file)
+                nav.popBackStack()
+            })
+        } else {
+            add(RadialItem("Zip", Icons.Rounded.FolderZip, Palette.muted, "Make a .zip beside it") {
+                Clip.zip(listOf(file))
+                nav.popBackStack()
             })
         }
         add(RadialItem("Info", Icons.Rounded.Info, Palette.muted, "Size, date, place") { mode = Mode.Info })

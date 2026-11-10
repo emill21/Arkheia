@@ -14,6 +14,12 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ContentCut
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DoneAll
+import androidx.compose.material.icons.rounded.FolderZip
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,13 +75,28 @@ fun FolderScreen(dir: File, nav: NavHostController) {
         if (Fs.mkdir(dir, name) == null) Fs.toast(context, "Couldn't create “$name”")
     }
     val isRoot = dir.path == Fs.root.path
+    var selecting by remember(dir.path) { mutableStateOf(false) }
+    val chosen = remember(dir.path) { mutableStateListOf<String>() }
+    var confirmDelete by remember(dir.path) { mutableStateOf(false) }
+    fun chosenFiles() = chosen.map { File(it) }
+    fun endSelect() {
+        selecting = false
+        confirmDelete = false
+        chosen.clear()
+    }
     val parent = dir.parentFile?.takeIf { !isRoot && Fs.isInside(it, Fs.root) }
     val list = entries
 
     val name = if (isRoot) "Storage" else dir.name
+    val running = op as? Clip.Op.Running
     Page(
         title = name,
+        behind = if (running != null) {
+            { BezelRing(listOf(animatedFraction(running.fraction) to Palette.primary), stroke = 6.dp) }
+        } else null,
         bottom = when {
+            running != null -> "${running.verb} ${running.done + 1} of ${running.total}"
+            selecting -> "${chosen.size} selected"
             !loaded -> "Loading…"
             list == null -> "Can't open"
             isRoot -> Fs.items(list.size)
@@ -88,7 +109,7 @@ fun FolderScreen(dir: File, nav: NavHostController) {
         if (o is Clip.Op.Running) {
             item {
                 Caption(
-                    "${if (o.move) "Moving" else "Copying"} ${o.done + 1}/${o.total}: ${o.current}",
+                    "${o.verb} ${o.current}",
                     color = Palette.primary,
                 )
             }
@@ -137,30 +158,96 @@ fun FolderScreen(dir: File, nav: NavHostController) {
                 }
             }
             if (list.isEmpty()) item { Caption("Nothing here yet") }
-            items(list, key = { it.path }) { e -> EntryChip(e, { nav.openEntry(e) }) }
+            items(list, key = { it.path }) { e ->
+                EntryChip(
+                    e,
+                    onClick = {
+                        if (selecting) {
+                            confirmDelete = false
+                            if (e.path in chosen) chosen.remove(e.path) else chosen.add(e.path)
+                        } else {
+                            nav.openEntry(e)
+                        }
+                    },
+                    selected = if (selecting) e.path in chosen else null,
+                )
+            }
         }
 
-        if (list != null) {
+        if (list != null && selecting) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val none = chosen.isEmpty()
+                    RoundButton(Icons.Rounded.ContentCopy, "Copy", {
+                        if (!none) { Clip.copy(chosenFiles()); Fs.toast(context, "Copied ${chosen.size}. Open a folder and tap Paste here"); endSelect() }
+                    }, size = 34.dp)
+                    RoundButton(Icons.Rounded.ContentCut, "Move", {
+                        if (!none) { Clip.cut(chosenFiles()); Fs.toast(context, "Open where they should go and tap Paste here"); endSelect() }
+                    }, size = 34.dp)
+                    RoundButton(Icons.Rounded.FolderZip, "Zip", {
+                        if (!none) { Clip.zip(chosenFiles()); endSelect() }
+                    }, tint = Palette.muted, size = 34.dp)
+                    RoundButton(Icons.Rounded.Delete, "Delete", {
+                        when {
+                            none -> {}
+                            confirmDelete -> { Clip.deleteAll(chosenFiles()); endSelect() }
+                            else -> confirmDelete = true
+                        }
+                    }, tint = Palette.red, size = 34.dp, filled = confirmDelete)
+                }
+            }
+            item {
+                Caption(
+                    when {
+                        confirmDelete -> "Tap delete again to delete ${chosen.size}. This can't be undone."
+                        chosen.isEmpty() -> "Tap files to select them"
+                        else -> "${chosen.size} selected"
+                    },
+                    color = if (confirmDelete) Palette.red else Palette.muted,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
+                    CompactChip(
+                        onClick = {
+                            confirmDelete = false
+                            if (chosen.size == list.size) chosen.clear() else { chosen.clear(); chosen.addAll(list.map { it.path }) }
+                        },
+                        label = { Text(if (chosen.size == list.size && list.isNotEmpty()) "None" else "All") },
+                        colors = ChipDefaults.secondaryChipColors(),
+                    )
+                    CompactChip(onClick = { endSelect() }, label = { Text("Done") }, colors = ChipDefaults.primaryChipColors())
+                }
+            }
+        }
+
+        if (list != null && !selecting) {
             // Folder dock: round buttons along the bottom of the list.
             item {
                 Row(
                     Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    RoundButton(Icons.Rounded.CreateNewFolder, "New folder", { newFolder("Folder name") }, size = 36.dp)
+                    RoundButton(Icons.Rounded.CreateNewFolder, "New folder", { newFolder("Folder name") }, size = 31.dp)
+                    if (list.isNotEmpty()) RoundButton(Icons.Rounded.DoneAll, "Select", { selecting = true }, tint = Palette.sage, size = 31.dp)
                     RoundButton(
                         Icons.AutoMirrored.Rounded.Sort, "Sort",
                         { Prefs.sort = Sort.entries[(sort.ordinal + 1) % Sort.entries.size] },
-                        tint = Palette.sky, size = 36.dp,
+                        tint = Palette.sky, size = 31.dp,
                     )
                     if (!isRoot) {
                         val pinned = Prefs.isPinned(dir.path)
                         RoundButton(
                             Icons.Rounded.PushPin, if (pinned) "Unpin" else "Pin",
-                            { Prefs.togglePin(dir.path) }, tint = Palette.sage, size = 36.dp, filled = pinned,
+                            { Prefs.togglePin(dir.path) }, tint = Palette.sage, size = 31.dp, filled = pinned,
                         )
-                        RoundButton(Icons.Rounded.MoreHoriz, "Folder actions", { nav.navigate(Route.item(dir)) }, tint = Palette.muted, size = 36.dp)
+                        RoundButton(Icons.Rounded.MoreHoriz, "Folder actions", { nav.navigate(Route.item(dir)) }, tint = Palette.muted, size = 31.dp)
                     }
                 }
             }

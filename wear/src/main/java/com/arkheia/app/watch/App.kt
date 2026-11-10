@@ -131,11 +131,13 @@ fun viewsInApp(kind: Kind) = kind == Kind.Image || kind == Kind.Text || kind == 
 fun ArkheiaApp(openRequest: String?, onOpened: () -> Unit, onReplayTour: () -> Unit, onWhatsNew: () -> Unit) {
     val nav = rememberSwipeDismissableNavController()
     val context = LocalContext.current
+    val view = androidx.compose.ui.platform.LocalView.current
     val op by Clip.op.collectAsStateWithLifecycle()
 
     LaunchedEffect(op) {
         val o = op
         if (o is Clip.Op.Finished) {
+            view.performHapticFeedback(if (o.ok) android.view.HapticFeedbackConstants.CONFIRM else android.view.HapticFeedbackConstants.REJECT)
             Fs.toast(context, o.message)
             Clip.dismiss()
         }
@@ -248,6 +250,7 @@ private fun HomeScreen(nav: NavHostController) {
 
     Scaffold(timeText = { TimeText() }) {
         Box(Modifier.fillMaxSize()) {
+            Aurora(if (sel != null) items[sel].tint else Palette.primary)
             BezelRing(StorageStats.segments(storage, analysis), arcs = Arcs.sides, stroke = 5.dp, inset = 2.dp)
             RadialDial(
                 items = items,
@@ -261,12 +264,21 @@ private fun HomeScreen(nav: NavHostController) {
                     }
                 },
             ) {
-                CenterDisc(glow = when {
-                    !access -> Palette.red
-                    sel != null -> items[sel].tint
-                    else -> Palette.primary
-                }) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(6.dp)) {
+                LiquidOrb(
+                    level = storage?.fraction ?: 0f,
+                    color = when {
+                        !access -> Palette.red
+                        sel != null -> items[sel].tint
+                        else -> Palette.primary
+                    },
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color.Black.copy(alpha = 0.38f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
                         when {
                             !access -> {
                                 Icon(Icons.Rounded.Lock, null, tint = Palette.red, modifier = Modifier.size(20.dp))

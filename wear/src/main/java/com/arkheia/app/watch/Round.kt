@@ -275,3 +275,113 @@ fun RoundButton(icon: ImageVector, label: String, onClick: () -> Unit, tint: Col
         Icon(icon, label, tint = if (filled) Palette.onPrimary else tint, modifier = Modifier.size(size * 0.5f).scale(1f))
     }
 }
+
+// ------------------------------------------------------------------ Liquid orb
+
+/** How far the wrist is tilted left/right, in degrees, smoothed. 0 when the watch has no sensor. */
+@Composable
+fun rememberTilt(): Float {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var tilt by remember { mutableFloatStateOf(0f) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val sm = context.getSystemService(android.hardware.SensorManager::class.java)
+        val sensor = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_GRAVITY)
+            ?: sm?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+        val listener = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(e: android.hardware.SensorEvent) {
+                // x is left/right on the watch face. Smooth it so the liquid eases instead of jittering.
+                val target = (-e.values[0] * 5.5f).coerceIn(-38f, 38f)
+                tilt += (target - tilt) * 0.12f
+            }
+
+            override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
+        }
+        if (sensor != null) sm?.registerListener(listener, sensor, android.hardware.SensorManager.SENSOR_DELAY_UI)
+        onDispose { sm?.unregisterListener(listener) }
+    }
+    return tilt
+}
+
+/**
+ * The app icon come to life: a glass orb with liquid inside. [level] (0..1) is how full it is,
+ * the surface waves gently, and it stays level as you tilt your wrist.
+ */
+@Composable
+fun LiquidOrb(
+    level: Float,
+    modifier: Modifier = Modifier,
+    color: Color = Palette.primary,
+    content: @Composable () -> Unit,
+) {
+    val tilt = rememberTilt()
+    val shown = animatedFraction(level)
+    val waves = androidx.compose.animation.core.rememberInfiniteTransition(label = "waves")
+    val phase by waves.animateFloat(
+        0f, (2 * Math.PI).toFloat(),
+        androidx.compose.animation.core.infiniteRepeatable(tween(2_600, easing = androidx.compose.animation.core.LinearEasing)),
+        label = "phase",
+    )
+    val tint by androidx.compose.animation.animateColorAsState(color, tween(400), label = "tint")
+    Box(modifier.fillMaxSize().clip(CircleShape), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            drawCircle(Brush.verticalGradient(listOf(Color(0xFF14100A), Color(0xFF2A1F10))))
+            androidx.compose.ui.graphics.drawscope.rotate(tilt) {
+                val surface = h * (1f - shown.coerceIn(0.04f, 0.96f))
+                fun wave(amp: Float, length: Float, shift: Float): androidx.compose.ui.graphics.Path {
+                    val p = androidx.compose.ui.graphics.Path()
+                    val step = 4f
+                    var x = -w * 0.5f
+                    p.moveTo(x, h * 1.6f)
+                    while (x <= w * 1.5f) {
+                        val y = surface + amp * sin((x / length) * 2 * Math.PI.toFloat() + phase + shift)
+                        p.lineTo(x, y)
+                        x += step
+                    }
+                    p.lineTo(w * 1.5f, h * 1.6f)
+                    p.close()
+                    return p
+                }
+                drawPath(wave(h * 0.035f, w * 0.75f, 1.7f), tint.copy(alpha = 0.35f))
+                drawPath(
+                    wave(h * 0.028f, w * 0.9f, 0f),
+                    Brush.verticalGradient(listOf(tint.copy(alpha = 0.95f), Palette.primaryContainer), startY = surface, endY = h),
+                )
+                // A couple of bubbles rising.
+                val t = phase / (2 * Math.PI.toFloat())
+                for (i in 0..2) {
+                    val bx = w * (0.32f + i * 0.17f)
+                    val travel = (h - surface).coerceAtLeast(1f)
+                    val by = h - ((t + i * 0.33f) % 1f) * travel
+                    if (by > surface + 4f) drawCircle(Color.White.copy(alpha = 0.18f), 2.2f + i, Offset(bx, by))
+                }
+            }
+            // Glass highlight.
+            drawCircle(
+                Brush.radialGradient(listOf(Color.White.copy(alpha = 0.20f), Color.Transparent), center = Offset(w * 0.34f, h * 0.30f), radius = w * 0.45f),
+            )
+            drawCircle(tint.copy(alpha = 0.35f), style = Stroke(1.5f))
+        }
+        content()
+    }
+}
+
+/** A slow-turning glow behind a dial, so the screen never feels static. */
+@Composable
+fun Aurora(color: Color, modifier: Modifier = Modifier) {
+    val spin = androidx.compose.animation.core.rememberInfiniteTransition(label = "aurora")
+    val angle by spin.animateFloat(
+        0f, 360f,
+        androidx.compose.animation.core.infiniteRepeatable(tween(24_000, easing = androidx.compose.animation.core.LinearEasing)),
+        label = "angle",
+    )
+    val tint by androidx.compose.animation.animateColorAsState(color, tween(600), label = "auroraTint")
+    Canvas(modifier.fillMaxSize().graphicsLayer { rotationZ = angle }) {
+        drawCircle(
+            Brush.sweepGradient(
+                listOf(Color.Transparent, tint.copy(alpha = 0.16f), Color.Transparent, tint.copy(alpha = 0.10f), Color.Transparent),
+            )
+        )
+    }
+}
