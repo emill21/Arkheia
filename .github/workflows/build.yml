@@ -1,0 +1,43 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :wear:assembleRelease --stacktrace
+          mv wear/build/outputs/apk/release/wear-release.apk Arkheia.apk
+          echo "VERSION=$(grep -oP 'versionName = "\K[^"]+' wear/build.gradle.kts)" >> "$GITHUB_ENV"
+      - name: Release notes
+        run: |
+          jq -r '.[0] | "## \(.title)\n\n" + (.items | map("- " + .) | join("\n"))' wear/src/main/assets/changelog.json > notes.md
+          printf '\n\n**Install on your watch:** download **Arkheia.apk** below and install it with Syndesia or Wear Installer from your phone, or with Wireless debugging (`adb install Arkheia.apk`). It installs over the previous version and keeps your settings. See the README for setup.\n\nFull history: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)\n' >> notes.md
+          cat notes.md
+      - name: Publish release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Arkheia ${{ env.VERSION }} (build ${{ github.run_number }})
+          body_path: notes.md
+          files: Arkheia.apk
+          make_latest: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Arkheia-apk
+          path: Arkheia.apk

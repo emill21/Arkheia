@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Arkheia "Amber archive": comet ring around a glass orb of liquid gold, with a folder inside. -->
+    <path android:pathData="M23,54a31,31 0,1 0,62 0a31,31 0,1 0,-62 0z" android:strokeColor="#FFFFDDA0" android:strokeAlpha="0.22" android:strokeWidth="3" />
+    <path android:pathData="M69.50,27.15 A31,31 0,0 1,82.86,42.67" android:strokeColor="#FFFFDDA0" android:strokeAlpha="0.19" android:strokeWidth="3.6" android:strokeLineCap="round" />
+    <path android:pathData="M82.86,42.67 A31,31 0,0 1,83.62,63.14" android:strokeColor="#FFFFDDA0" android:strokeAlpha="0.26" android:strokeWidth="3.6" android:strokeLineCap="round" />
+    <path android:pathData="M83.62,63.14 A31,31 0,0 1,71.46,79.61" android:strokeColor="#FFFFDDA0" android:strokeAlpha="0.37" android:strokeWidth="3.6" android:strokeLineCap="round" />
+    <path android:pathData="M71.46,79.61 A31,31 0,0 1,51.68,84.91" android:strokeColor="#FFFFDDA0" android:strokeAlpha="0.50" android:strokeWidth="3.6" android:strokeLineCap="round" />
+    <path android:pathData="M51.68,84.91 A31,31 0,0 1,32.91,76.72" android:strokeColor="#FFFFDDA0" android:strokeAlpha="0.65" android:strokeWidth="3.6" android:strokeLineCap="round" />
+    <path android:pathData="M32.91,76.72 A31,31 0,0 1,23.35,58.62" android:strokeColor="#FFFFDDA0" android:strokeAlpha="0.81" android:strokeWidth="3.6" android:strokeLineCap="round" />
+    <path android:pathData="M23.35,58.62 A31,31 0,0 1,27.15,38.50" android:strokeColor="#FFFFDDA0" android:strokeAlpha="1.00" android:strokeWidth="3.6" android:strokeLineCap="round" />
+    <path android:pathData="M23.75,38.50a3.4,3.4 0,1 0,6.8 0a3.4,3.4 0,1 0,-6.8 0z" android:fillColor="#FFFFDDA0" />
+    <!-- Glass -->
+    <path android:pathData="M28,54a26,26 0,1 0,52 0a26,26 0,1 0,-52 0z" android:fillColor="#FFFFFFFF" android:fillAlpha="0.08" />
+    <group>
+        <clip-path android:pathData="M28,54a26,26 0,1 0,52 0a26,26 0,1 0,-52 0z" />
+        <path android:pathData="M16,60 C30,54 40,54 50,59 C60,64 70,64 92,57 V92 H16 Z" android:fillColor="#FFFFDDA0" android:fillAlpha="0.45" />
+        <path android:pathData="M16,58 C32,64 42,64 54,58 C66,52 76,52 92,59 V92 H16 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="54" android:startY="52" android:endX="54" android:endY="82"
+                    android:startColor="#FFFFE7B8" android:endColor="#FFF0B44A" />
+            </aapt:attr>
+        </path>
+        <path android:pathData="M58,72a2,2 0,1 0,4 0a2,2 0,1 0,-4 0z M45.6,75a1.4,1.4 0,1 0,2.8 0a1.4,1.4 0,1 0,-2.8 0z"
+            android:fillColor="#FF3A2600" android:fillAlpha="0.25" />
+        <path android:pathData="M28,54a26,26 0,1 0,52 0a26,26 0,1 0,-52 0z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="radial" android:centerX="44" android:centerY="44" android:gradientRadius="22"
+                    android:startColor="#38FFFFFF" android:endColor="#00FFFFFF" />
+            </aapt:attr>
+        </path>
+    </group>
+    <!-- Folder -->
+    <path android:pathData="M40,42h9.5l3,3h13.5a2.5,2.5 0 0 1 2.5,2.5v15a2.5,2.5 0 0 1 -2.5,2.5h-26a2.5,2.5 0 0 1 -2.5,-2.5v-18a2.5,2.5 0 0 1 2.5,-2.5z" android:fillColor="#FF3A2600" />
+    <path android:pathData="M39.5,51h29" android:strokeColor="#FFFFDDA0" android:strokeAlpha="0.35" android:strokeWidth="1" />
+    <path android:pathData="M54,52.5 C54.6,56.6 55.8,57.8 60,58.4 C55.8,59 54.6,60.2 54,64.3 C53.4,60.2 52.2,59 48,58.4 C52.2,57.8 53.4,56.6 54,52.5Z" android:fillColor="#FFFFDDA0" />
+</vector>
