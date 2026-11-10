@@ -207,7 +207,7 @@ private fun HomeScreen(nav: NavHostController) {
             item {
                 ActionChip(
                     "Allow file access", Icons.Rounded.Lock, { nav.navigate(Route.SETTINGS) },
-                    secondary = "Needed to see your files", primary = true,
+                    secondary = "Needed to see your files. No computer needed", primary = true,
                 )
             }
         }
@@ -370,8 +370,8 @@ private fun SearchScreen(nav: NavHostController) {
 
 @Composable
 private fun SettingsScreen(onReplayTour: () -> Unit, onWhatsNew: () -> Unit) {
-    val context = LocalContext.current
     val access = rememberAccess()
+    val unlock = rememberUnlockUi()
     Page {
         item { PageTitle("Settings") }
         item { Section("Browsing") }
@@ -406,18 +406,11 @@ private fun SettingsScreen(onReplayTour: () -> Unit, onWhatsNew: () -> Unit) {
         if (access) {
             item { ActionChip("All files access is on", Icons.Rounded.CheckCircle, {}, tint = Palette.sage) }
         } else {
-            item { Caption("Arkheia needs All files access to show everything on your watch.") }
-            item {
-                ActionChip("Open settings", Icons.Rounded.Lock, {
-                    if (!Fs.openAccessSettings(context)) Fs.toast(context, "Not on this watch: use a computer")
-                }, primary = true)
-            }
-            item { Caption("No switch on your watch? With Wireless debugging on, run this from a computer:") }
-            item { CommandCard(Fs.ADB_GRANT) }
+            unlockSteps(unlock)
         }
 
         item { Section("Installing apps") }
-        item { Caption("To install APKs from Arkheia, allow it once when asked, or run:") }
+        item { Caption("Unlocking file access above also lets Arkheia install APKs. Otherwise allow it when asked, or run:") }
         item { CommandCard("adb shell appops set com.arkheia.app REQUEST_INSTALL_PACKAGES allow") }
 
         item { Section("About") }
@@ -435,7 +428,7 @@ private fun SettingsScreen(onReplayTour: () -> Unit, onWhatsNew: () -> Unit) {
 @Composable
 fun SetupScreen(onDone: () -> Unit) {
     val access = rememberAccess()
-    val context = LocalContext.current
+    val unlock = rememberUnlockUi()
     var step by remember { mutableIntStateOf(0) }
     Page {
         item {
@@ -459,15 +452,7 @@ fun SetupScreen(onDone: () -> Unit) {
                         color = if (access) Palette.primary else Palette.muted,
                     )
                 }
-                if (!access) {
-                    item {
-                        ActionChip("Open settings", Icons.Rounded.Lock, {
-                            if (!Fs.openAccessSettings(context)) Fs.toast(context, "Not on this watch: use a computer")
-                        }, primary = true)
-                    }
-                    item { Caption("No switch on your watch? From a computer with Wireless debugging:") }
-                    item { CommandCard(Fs.ADB_GRANT) }
-                }
+                if (!access) unlockSteps(unlock)
                 item { NextChip(if (access) "Next" else "Skip for now") { step = 2 } }
             }
             else -> {

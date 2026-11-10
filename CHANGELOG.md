@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1 · No computer needed (2026-11-10)
+
+- Turn on file access right on the watch, no computer or phone needed: Arkheia pairs with your watch's own Wireless debugging and switches it on for you
+- Type the pairing code straight into Arkheia's notification, so the code screen in Settings stays open
+- Older watches with Debug over Wi-Fi just need you to tap Allow, no code
+- Unlocking also lets Arkheia install APKs
+
 ## 1.0 · Arkheia on your watch (2026-11-10)
 
 - Browse every folder on your watch, with folders first and sorting by name, date, size or type

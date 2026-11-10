@@ -15,15 +15,16 @@
 2. Install it on the watch: from your phone with **Syndesia** or *Wear Installer 2*, or from a computer with
    Wireless debugging on the watch (**Settings › Developer options › Wireless debugging**):
    `adb pair <ip:port>`, `adb connect <ip:port>`, `adb install Arkheia.apk`.
-3. Open Arkheia and allow **All files access** when the tour asks. Many watches don't have that switch in
-   Settings; if yours doesn't, run this once from the computer:
+3. Open Arkheia and allow **All files access**. The tour walks you through it, right on the watch:
+   1. **Developer options**: tap *Build number* 7 times (Settings › System › About).
+   2. **Wireless debugging** on (Developer options; the watch must be on Wi-Fi).
+   3. Tap **Pair new device**. Arkheia pops up a notification: type the 6-digit code into it.
 
-   ```
-   adb shell appops set --uid com.arkheia.app MANAGE_EXTERNAL_STORAGE allow
-   ```
+   Arkheia pairs with its own watch, runs the one command that allows file access, and disconnects. You can
+   switch Wireless debugging off afterwards. Older watches with *Debug over Wi-Fi* just ask "Allow debugging?"
+   instead of a code. This also allows Arkheia to install APKs.
 
-Optional, to install APKs from inside Arkheia:
-`adb shell appops set com.arkheia.app REQUEST_INSTALL_PACKAGES allow`
+   Prefer a computer? `adb shell appops set --uid com.arkheia.app MANAGE_EXTERNAL_STORAGE allow`
 
 Every build is signed with the same key (`keystore/`), so updates install over the previous version and keep
 your settings and access.

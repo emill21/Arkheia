@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.1",
+    "date": "2026-11-10",
+    "title": "No computer needed",
+    "items": [
+      "Turn on file access right on the watch, no computer or phone needed: Arkheia pairs with your watch's own Wireless debugging and switches it on for you",
+      "Type the pairing code straight into Arkheia's notification, so the code screen in Settings stays open",
+      "Older watches with Debug over Wi-Fi just need you to tap Allow, no code",
+      "Unlocking also lets Arkheia install APKs"
+    ]
+  },
+  {
     "version": "1.0",
     "date": "2026-11-10",
     "title": "Arkheia on your watch",
