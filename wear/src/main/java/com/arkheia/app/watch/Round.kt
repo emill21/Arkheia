@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -149,8 +150,12 @@ data class RadialItem(
     val tint: Color = Palette.primary,
     val detail: String? = null,
     val danger: Boolean = false,
+    /** What fits inside the bubble; defaults to [label]. */
+    val shortLabel: String? = null,
     val onClick: () -> Unit,
-)
+) {
+    val short get() = shortLabel ?: label
+}
 
 /**
  * Buttons laid out in a circle around a centre disc. Turn the crown to move the highlight round
@@ -161,7 +166,7 @@ fun RadialDial(
     items: List<RadialItem>,
     modifier: Modifier = Modifier,
     radius: Float = 0.355f,
-    bubble: Dp = 40.dp,
+    bubble: Dp = 46.dp,
     selected: Int,
     onSelect: (Int) -> Unit,
     onCenter: () -> Unit,
@@ -241,7 +246,19 @@ private fun Bubble(item: RadialItem, index: Int, highlighted: Boolean, size: Dp,
             .clickable(onClick = item.onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(item.icon, item.label, tint = if (highlighted) Color.White else color, modifier = Modifier.size(size * 0.5f))
+        androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(item.icon, item.label, tint = if (highlighted) Color.White else color, modifier = Modifier.size(size * 0.40f))
+            androidx.wear.compose.material.Text(
+                item.short,
+                fontSize = 7.5.sp,
+                lineHeight = 8.sp,
+                color = if (highlighted) Color.White else Palette.onSurface.copy(alpha = 0.9f),
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
+                modifier = Modifier.padding(horizontal = 2.dp),
+            )
+        }
     }
 }
 
@@ -292,7 +309,7 @@ fun rememberTilt(): Float {
         val listener = object : android.hardware.SensorEventListener {
             override fun onSensorChanged(e: android.hardware.SensorEvent) {
                 // x is left/right on the watch face. Smooth it so the liquid eases instead of jittering.
-                val target = (-e.values[0] * 5.5f).coerceIn(-38f, 38f)
+                val target = (e.values[0] * 5.5f).coerceIn(-38f, 38f)
                 tilt += (target - tilt) * 0.12f
             }
 

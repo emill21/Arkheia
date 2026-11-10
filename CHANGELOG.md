@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1 · Labels and level liquid (2026-11-10)
+
+- The liquid now tilts the right way
+- Every button around the dial has its name under the icon, and the bubbles are a little bigger to fit it
+
 ## 1.5 · Liquid (2026-11-10)
 
 - The middle of the home dial is now a liquid orb, like the app icon: it fills up as your storage does, waves gently, and stays level when you tilt your wrist

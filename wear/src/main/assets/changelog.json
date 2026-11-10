@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.5.1",
+    "date": "2026-11-10",
+    "title": "Labels and level liquid",
+    "items": [
+      "The liquid now tilts the right way",
+      "Every button around the dial has its name under the icon, and the bubbles are a little bigger to fit it"
+    ]
+  },
+  {
     "version": "1.5",
     "date": "2026-11-10",
     "title": "Liquid",

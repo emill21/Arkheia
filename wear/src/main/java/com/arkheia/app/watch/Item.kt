@@ -147,7 +147,7 @@ fun ItemScreen(file: File, nav: NavHostController) {
             }
         )
         if (!isDir && (inApp || kind == Kind.Apk)) {
-            add(RadialItem("Open with", Icons.Rounded.Apps, Palette.sky, "Another app") { Fs.openWith(context, file) })
+            add(RadialItem("Open with", Icons.Rounded.Apps, Palette.sky, "Another app", shortLabel = "With…") { Fs.openWith(context, file) })
         }
         add(RadialItem("Copy", Icons.Rounded.ContentCopy, Palette.primary, "Then paste in a folder") {
             Clip.copy(file)
@@ -206,7 +206,7 @@ fun ItemScreen(file: File, nav: NavHostController) {
             RadialDial(
                 items = actions,
                 radius = 0.36f,
-                bubble = 38.dp,
+                bubble = 44.dp,
                 selected = if (confirming) actions.lastIndex else selected,
                 onSelect = { if (!confirming) selected = it },
                 onCenter = {

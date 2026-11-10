@@ -237,7 +237,7 @@ private fun HomeScreen(nav: NavHostController) {
     var selected by rememberSaveable { mutableIntStateOf(-1) }
 
     val items = buildList {
-        add(RadialItem("All files", Icons.Rounded.Storage, Palette.primary, "Internal storage") { nav.navigate(Route.folder(Fs.root)) })
+        add(RadialItem("All files", Icons.Rounded.Storage, Palette.primary, "Internal storage", shortLabel = "Files") { nav.navigate(Route.folder(Fs.root)) })
         quick.take(3).forEach { q ->
             add(RadialItem(q.name, q.icon, q.tint, Fs.items(q.children)) { nav.navigate(Route.folder(q.dir)) })
         }
