@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4 · Made for the round screen (2026-11-10)
+
+- A whole new look built for the round screen
+- Home is now a dial: shortcuts in a ring around the middle, turn the crown to move round it (with a tick you can feel), tap the middle to open
+- A storage ring round the edge of the screen, coloured by what's using the space
+- Folder names and captions curve along the edge of the watch
+- Files and folders get an action wheel around their preview, with a delete you confirm in the middle
+- Music plays on a spinning record with progress round the edge; turn the crown to scrub
+- Storage shows a big ring of your space; the tile gets a storage ring too
+
 ## 1.3 · Photos, videos and the Files permission (2026-11-10)
 
 - Uses your watch's Files permission now, so Allow file access covers every file, not just photos and music

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
@@ -53,6 +55,7 @@ import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 import androidx.wear.compose.material.Vignette
 import androidx.wear.compose.material.VignettePosition
+import androidx.wear.compose.material.curvedText
 import com.arkheia.app.Entry
 import com.arkheia.app.Fs
 import com.arkheia.app.Kind
@@ -119,21 +122,44 @@ fun kindTint(kind: Kind): Color = when (kind) {
     Kind.Other -> Palette.muted
 }
 
-/** One scrolling screen with the time on top and a scroll bar on the side. */
+/**
+ * One scrolling screen. [title] curves along the top next to the time, [bottom] curves along the
+ * bottom edge, and [behind] draws under the list (e.g. a bezel ring).
+ */
 @Composable
-fun Page(content: ScalingLazyListScope.() -> Unit) {
+fun Page(
+    title: String? = null,
+    bottom: String? = null,
+    accent: Color = Palette.primary,
+    inset: Dp = 10.dp,
+    behind: (@Composable () -> Unit)? = null,
+    content: ScalingLazyListScope.() -> Unit,
+) {
     val state = rememberScalingLazyListState(initialCenterItemIndex = 0)
     Scaffold(
-        timeText = { TimeText() },
+        timeText = {
+            if (title != null) {
+                TimeText(
+                    startLinearContent = { Text(title, color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    startCurvedContent = { curvedText(title.take(20), color = accent) },
+                )
+            } else {
+                TimeText()
+            }
+        },
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
         positionIndicator = { PositionIndicator(scalingLazyListState = state) },
     ) {
-        ScalingLazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            state = state,
-            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 28.dp, bottom = 36.dp),
-            content = content,
-        )
+        Box(Modifier.fillMaxSize()) {
+            behind?.invoke()
+            ScalingLazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = state,
+                contentPadding = PaddingValues(start = inset, end = inset, top = 28.dp, bottom = if (bottom != null) 44.dp else 36.dp),
+                content = content,
+            )
+            if (bottom != null) CurvedCaption(bottom, color = accent.copy(alpha = 0.85f))
+        }
     }
 }
 
@@ -236,10 +262,24 @@ fun EntryChip(e: Entry, onClick: () -> Unit, detail: String? = null) {
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        icon = { Icon(kindIcon(e.kind, locked), null, tint = kindTint(e.kind)) },
+        icon = { IconBlob(kindIcon(e.kind, locked), kindTint(e.kind)) },
         colors = fileChipColors,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+/** An icon sitting in a softly tinted circle. */
+@Composable
+fun IconBlob(icon: ImageVector, tint: Color) {
+    Box(
+        Modifier
+            .size(26.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(Brush.radialGradient(listOf(tint.copy(alpha = 0.32f), tint.copy(alpha = 0.10f)))),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
+    }
 }
 
 /** A plain action row: icon + label (+ optional second line). */
@@ -260,7 +300,7 @@ fun ActionChip(
         secondaryLabel = if (secondary != null) {
             { Text(secondary, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         } else null,
-        icon = { Icon(icon, null, tint = if (primary) Palette.onPrimary else tint) },
+        icon = { if (primary) Icon(icon, null, tint = Palette.onPrimary) else IconBlob(icon, tint) },
         colors = if (primary) ChipDefaults.primaryChipColors() else fileChipColors,
         modifier = Modifier.fillMaxWidth(),
     )

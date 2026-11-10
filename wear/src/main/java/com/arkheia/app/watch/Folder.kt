@@ -3,6 +3,8 @@ package com.arkheia.app.watch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.ArrowUpward
@@ -70,19 +72,16 @@ fun FolderScreen(dir: File, nav: NavHostController) {
     val parent = dir.parentFile?.takeIf { !isRoot && Fs.isInside(it, Fs.root) }
     val list = entries
 
-    Page {
-        item { PageTitle(if (isRoot) "Internal storage" else dir.name) }
-        item {
-            Caption(
-                when {
-                    !loaded -> "Loading…"
-                    list == null -> "Can't open"
-                    isRoot -> Fs.items(list.size)
-                    else -> "${Fs.items(list.size)} · ${Fs.pretty(dir.parent ?: "")}"
-                }
-            )
-        }
-
+    val name = if (isRoot) "Storage" else dir.name
+    Page(
+        title = name,
+        bottom = when {
+            !loaded -> "Loading…"
+            list == null -> "Can't open"
+            isRoot -> Fs.items(list.size)
+            else -> "${Fs.items(list.size)} · ${Fs.pretty(dir.parent ?: "")}"
+        },
+    ) {
         // Paste bar
         val o = op
         val c = clip
@@ -142,33 +141,39 @@ fun FolderScreen(dir: File, nav: NavHostController) {
         }
 
         if (list != null) {
-            item { Section("This folder") }
-            item { ActionChip("New folder", Icons.Rounded.CreateNewFolder, { newFolder("Folder name") }) }
+            // Folder dock: round buttons along the bottom of the list.
             item {
-                ActionChip(
-                    "Sort by ${sort.title.lowercase()}", Icons.AutoMirrored.Rounded.Sort,
-                    { Prefs.sort = Sort.entries[(sort.ordinal + 1) % Sort.entries.size] },
-                )
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RoundButton(Icons.Rounded.CreateNewFolder, "New folder", { newFolder("Folder name") }, size = 36.dp)
+                    RoundButton(
+                        Icons.AutoMirrored.Rounded.Sort, "Sort",
+                        { Prefs.sort = Sort.entries[(sort.ordinal + 1) % Sort.entries.size] },
+                        tint = Palette.sky, size = 36.dp,
+                    )
+                    if (!isRoot) {
+                        val pinned = Prefs.isPinned(dir.path)
+                        RoundButton(
+                            Icons.Rounded.PushPin, if (pinned) "Unpin" else "Pin",
+                            { Prefs.togglePin(dir.path) }, tint = Palette.sage, size = 36.dp, filled = pinned,
+                        )
+                        RoundButton(Icons.Rounded.MoreHoriz, "Folder actions", { nav.navigate(Route.item(dir)) }, tint = Palette.muted, size = 36.dp)
+                    }
+                }
             }
-            if (!isRoot) {
-                val pinned = Prefs.isPinned(dir.path)
-                item {
-                    ActionChip(
-                        if (pinned) "Unpin from home" else "Pin to home", Icons.Rounded.PushPin,
-                        { Prefs.togglePin(dir.path) }, tint = if (pinned) Palette.primary else Palette.muted,
-                    )
-                }
-                item {
-                    ActionChip(
-                        "Copy, move, rename…", Icons.Rounded.MoreHoriz, { nav.navigate(Route.item(dir)) },
-                        secondary = "Size and more",
-                    )
-                }
+            item {
+                Caption(
+                    "Sorted by ${sort.title.lowercase()}" + if (!isRoot && Prefs.isPinned(dir.path)) " · pinned" else "",
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
             parent?.let { p ->
                 item {
                     ActionChip(
-                        "Up to ${if (p.path == Fs.root.path) "Internal storage" else p.name}", Icons.Rounded.ArrowUpward,
+                        "Up to ${if (p.path == Fs.root.path) "Storage" else p.name}", Icons.Rounded.ArrowUpward,
                         { nav.navigate(Route.folder(p)) },
                     )
                 }

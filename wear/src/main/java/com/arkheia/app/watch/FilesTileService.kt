@@ -3,6 +3,7 @@ package com.arkheia.app.watch
 import android.os.Environment
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders.argb
+import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.DimensionBuilders.expand
 import androidx.wear.protolayout.DimensionBuilders.sp
@@ -29,19 +30,46 @@ class FilesTileService : TileService() {
             ?: Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val secondLabel = if (Prefs.pins.isNotEmpty() && second.path == Prefs.pins.first()) second.name else "Download"
 
+        val used = if (s.total > 0) (s.used.toFloat() / s.total).coerceIn(0f, 1f) else 0f
+
         val column = LayoutElementBuilders.Column.Builder()
             .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
             .addContent(text("Arkheia", 13f, MUTED, bold = false))
             .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).build())
             .addContent(text(if (s.total > 0) "${Fs.bytes(s.free)} free" else "Files", 18f, ON_SURFACE, bold = true))
+            .addContent(text(if (s.total > 0) "${(used * 100).toInt()}% used" else "", 11f, MUTED, bold = false))
             .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(10f)).build())
             .addContent(button("all", "All files", Fs.root.path, filled = true))
             .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).build())
             .addContent(button("second", secondLabel.take(14), second.path, filled = false))
             .build()
 
+        // Storage ring round the edge of the tile, like the app's home dial.
+        val track = LayoutElementBuilders.Arc.Builder()
+            .setAnchorAngle(DimensionBuilders.degrees(0f))
+            .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+            .addContent(
+                LayoutElementBuilders.ArcLine.Builder()
+                    .setLength(DimensionBuilders.degrees(360f))
+                    .setThickness(dp(5f))
+                    .setColor(argb(TRACK))
+                    .build()
+            ).build()
+        val fill = LayoutElementBuilders.Arc.Builder()
+            .setAnchorAngle(DimensionBuilders.degrees(0f))
+            .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+            .addContent(
+                LayoutElementBuilders.ArcLine.Builder()
+                    .setLength(DimensionBuilders.degrees(maxOf(2f, 360f * used)))
+                    .setThickness(dp(5f))
+                    .setColor(argb(PRIMARY))
+                    .build()
+            ).build()
+
         val root = LayoutElementBuilders.Box.Builder()
             .setWidth(expand()).setHeight(expand())
+            .addContent(track)
+            .addContent(fill)
             .addContent(column)
             .build()
 
@@ -101,5 +129,6 @@ class FilesTileService : TileService() {
         const val SURFACE = 0xFF2E281F.toInt()
         const val ON_SURFACE = 0xFFEDE1D4.toInt()
         const val MUTED = 0xFFD3C4B4.toInt()
+        const val TRACK = 0x33FFDDA0
     }
 }

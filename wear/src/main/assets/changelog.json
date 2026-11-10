@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.4",
+    "date": "2026-11-10",
+    "title": "Made for the round screen",
+    "items": [
+      "A whole new look built for the round screen",
+      "Home is now a dial: shortcuts in a ring around the middle, turn the crown to move round it (with a tick you can feel), tap the middle to open",
+      "A storage ring round the edge of the screen, coloured by what's using the space",
+      "Folder names and captions curve along the edge of the watch",
+      "Files and folders get an action wheel around their preview, with a delete you confirm in the middle",
+      "Music plays on a spinning record with progress round the edge; turn the crown to scrub",
+      "Storage shows a big ring of your space; the tile gets a storage ring too"
+    ]
+  },
+  {
     "version": "1.3",
     "date": "2026-11-10",
     "title": "Photos, videos and the Files permission",

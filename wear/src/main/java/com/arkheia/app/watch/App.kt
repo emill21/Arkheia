@@ -74,6 +74,13 @@ import com.arkheia.app.StorageInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.wear.compose.material.Scaffold
+import androidx.wear.compose.material.TimeText
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 // ------------------------------------------------------------------ Navigation
@@ -87,6 +94,7 @@ object Route {
     const val SETTINGS = "settings"
     const val STORAGE = "storage"
     const val SEARCH = "search"
+    const val RECENT = "recent"
     fun folder(f: File) = "folder/${enc(f.path)}"
     fun item(f: File) = "item/${enc(f.path)}"
     fun text(f: File) = "text/${enc(f.path)}"
@@ -148,6 +156,7 @@ fun ArkheiaApp(openRequest: String?, onOpened: () -> Unit, onReplayTour: () -> U
         composable(Route.SETTINGS) { SettingsScreen(onReplayTour, onWhatsNew) }
         composable(Route.STORAGE) { StorageScreen(nav) }
         composable(Route.SEARCH) { SearchScreen(nav) }
+        composable(Route.RECENT) { RecentScreen(nav) }
         composable("folder/{p}") { FolderScreen(File(dec(it.arguments?.getString("p").orEmpty())), nav) }
         composable("item/{p}") { ItemScreen(File(dec(it.arguments?.getString("p").orEmpty())), nav) }
         composable("text/{p}") { TextScreen(File(dec(it.arguments?.getString("p").orEmpty()))) }
@@ -173,71 +182,137 @@ fun rememberAccess(): Boolean {
 
 // ------------------------------------------------------------------ Home
 
-private data class Quick(val name: String, val icon: ImageVector, val dir: File)
+private data class Quick(val name: String, val icon: ImageVector, val tint: Color, val dir: File, val children: Int = 0)
 
 private fun quickFolders(): List<Quick> {
     fun pub(type: String) = Environment.getExternalStoragePublicDirectory(type)
     return listOf(
-        Quick("Download", Icons.Rounded.Download, pub(Environment.DIRECTORY_DOWNLOADS)),
-        Quick("Music", Icons.Rounded.MusicNote, pub(Environment.DIRECTORY_MUSIC)),
-        Quick("Pictures", Icons.Rounded.Photo, pub(Environment.DIRECTORY_PICTURES)),
-        Quick("Camera", Icons.Rounded.PhotoCamera, pub(Environment.DIRECTORY_DCIM)),
-        Quick("Movies", Icons.Rounded.Movie, pub(Environment.DIRECTORY_MOVIES)),
-        Quick("Documents", Icons.Rounded.Description, pub(Environment.DIRECTORY_DOCUMENTS)),
-        Quick("Recordings", Icons.Rounded.Mic, pub(Environment.DIRECTORY_RECORDINGS)),
-    ).filter { it.dir.isDirectory }
+        Quick("Download", Icons.Rounded.Download, Palette.primary, pub(Environment.DIRECTORY_DOWNLOADS)),
+        Quick("Music", Icons.Rounded.MusicNote, Palette.violet, pub(Environment.DIRECTORY_MUSIC)),
+        Quick("Camera", Icons.Rounded.PhotoCamera, Palette.rose, pub(Environment.DIRECTORY_DCIM)),
+        Quick("Pictures", Icons.Rounded.Photo, Palette.rose, pub(Environment.DIRECTORY_PICTURES)),
+        Quick("Movies", Icons.Rounded.Movie, Palette.sky, pub(Environment.DIRECTORY_MOVIES)),
+        Quick("Documents", Icons.Rounded.Description, Palette.onSurface, pub(Environment.DIRECTORY_DOCUMENTS)),
+        Quick("Recordings", Icons.Rounded.Mic, Palette.sage, pub(Environment.DIRECTORY_RECORDINGS)),
+    ).filter { it.dir.isDirectory }.map { it.copy(children = it.dir.list()?.size ?: 0) }
+}
+
+/** Storage breakdown, kept between screens so the rings don't have to rescan every time. */
+object StorageStats {
+    val analysis = kotlinx.coroutines.flow.MutableStateFlow<Analysis?>(null)
+    val scanned = kotlinx.coroutines.flow.MutableStateFlow(0)
+    private var at = -1
+    private val lock = kotlinx.coroutines.sync.Mutex()
+
+    suspend fun refresh(version: Int) = lock.withLock {
+        if (at == version && analysis.value != null) return@withLock
+        val a = withContext(Dispatchers.IO) { Fs.analyze { scanned.value = it } }
+        analysis.value = a
+        at = version
+    }
+
+    /** Ring segments: each type's share of the whole disk, then everything else that's used. */
+    fun segments(s: StorageInfo?, a: Analysis?): List<Pair<Float, Color>> {
+        if (s == null || s.total <= 0) return emptyList()
+        if (a == null) return listOf(s.fraction to Palette.primary)
+        val total = s.total.toFloat()
+        val kinds = a.byKind.entries.filter { it.value > 0 }.sortedByDescending { it.value }
+        val mine = kinds.sumOf { it.value }
+        return kinds.map { (k, b) -> b / total to kindTint(k) } +
+            listOf(((s.used - mine).coerceAtLeast(0) / total) to Palette.muted.copy(alpha = 0.45f))
+    }
 }
 
 @Composable
 private fun HomeScreen(nav: NavHostController) {
     val version by Fs.version.collectAsStateWithLifecycle()
     val clip by Clip.content.collectAsStateWithLifecycle()
+    val analysis by StorageStats.analysis.collectAsStateWithLifecycle()
     val access = rememberAccess()
-    val pins = Prefs.pins
-    val recentPaths = Prefs.recent
     val storage by produceState<StorageInfo?>(null, version) { value = withContext(Dispatchers.IO) { Fs.storage() } }
     val quick by produceState(emptyList<Quick>(), access, version) { value = withContext(Dispatchers.IO) { quickFolders() } }
+    LaunchedEffect(version, access) { if (access) StorageStats.refresh(version) }
+    var selected by rememberSaveable { mutableIntStateOf(-1) }
+
+    val items = buildList {
+        add(RadialItem("All files", Icons.Rounded.Storage, Palette.primary, "Internal storage") { nav.navigate(Route.folder(Fs.root)) })
+        quick.take(3).forEach { q ->
+            add(RadialItem(q.name, q.icon, q.tint, Fs.items(q.children)) { nav.navigate(Route.folder(q.dir)) })
+        }
+        add(RadialItem("Recent", Icons.Rounded.History, Palette.sage, "Recent & pinned") { nav.navigate(Route.RECENT) })
+        add(RadialItem("Search", Icons.Rounded.Search, Palette.sky, "Find by name") { nav.navigate(Route.SEARCH) })
+        add(RadialItem("Storage", Icons.Rounded.PieChart, Palette.primary, "What's using space") { nav.navigate(Route.STORAGE) })
+        add(RadialItem("Settings", Icons.Rounded.Settings, Palette.muted, null) { nav.navigate(Route.SETTINGS) })
+    }
+    val sel = selected.takeIf { it in items.indices }
+
+    Scaffold(timeText = { TimeText() }) {
+        Box(Modifier.fillMaxSize()) {
+            BezelRing(StorageStats.segments(storage, analysis), arcs = Arcs.sides, stroke = 5.dp, inset = 2.dp)
+            RadialDial(
+                items = items,
+                selected = selected,
+                onSelect = { selected = it },
+                onCenter = {
+                    when {
+                        !access -> nav.navigate(Route.SETTINGS)
+                        sel != null -> items[sel].onClick()
+                        else -> nav.navigate(Route.folder(Fs.root))
+                    }
+                },
+            ) {
+                CenterDisc(glow = when {
+                    !access -> Palette.red
+                    sel != null -> items[sel].tint
+                    else -> Palette.primary
+                }) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(6.dp)) {
+                        when {
+                            !access -> {
+                                Icon(Icons.Rounded.Lock, null, tint = Palette.red, modifier = Modifier.size(20.dp))
+                                Text("Allow", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.onSurface)
+                                Text("file access", fontSize = 10.sp, color = Palette.muted)
+                            }
+                            sel != null -> {
+                                val item = items[sel]
+                                Icon(item.icon, null, tint = item.tint, modifier = Modifier.size(20.dp))
+                                Text(item.label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.onSurface, maxLines = 1)
+                                item.detail?.let { d -> Text(d, fontSize = 9.sp, color = Palette.muted, maxLines = 1, textAlign = TextAlign.Center) }
+                            }
+                            else -> {
+                                Text(storage?.let { Fs.bytes(it.free) } ?: "…", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Palette.onSurface, maxLines = 1)
+                                Text("free", fontSize = 10.sp, color = Palette.primary)
+                            }
+                        }
+                    }
+                }
+            }
+            val c = clip
+            CurvedCaption(
+                when {
+                    c != null -> "Paste ${c.label}: open a folder"
+                    sel != null -> "Tap the middle to open"
+                    else -> storage?.let { "${Fs.bytes(it.used)} of ${Fs.bytes(it.total)} used" } ?: ""
+                },
+                color = if (c != null) Palette.primary else Palette.muted,
+            )
+        }
+    }
+}
+
+// ------------------------------------------------------------------ Recent & pinned
+
+@Composable
+private fun RecentScreen(nav: NavHostController) {
+    val version by Fs.version.collectAsStateWithLifecycle()
+    val pins = Prefs.pins
+    val recentPaths = Prefs.recent
     val recent by produceState(emptyList<Entry>(), recentPaths, version) {
         value = withContext(Dispatchers.IO) { recentPaths.map { File(it) }.filter { it.exists() }.map { Fs.entry(it) } }
     }
-
-    Page {
-        item {
-            Orb(
-                progress = storage?.fraction ?: 0f,
-                modifier = Modifier.size(96.dp).clickable { nav.navigate(Route.STORAGE) },
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(storage?.let { Fs.bytes(it.free) } ?: "…", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Palette.onSurface)
-                    Text("free", fontSize = 11.sp, color = Palette.primary)
-                }
-            }
-        }
-        storage?.let { s -> item { Caption("${Fs.bytes(s.used)} of ${Fs.bytes(s.total)} used") } }
-        if (!access) {
-            item {
-                ActionChip(
-                    "Allow file access", Icons.Rounded.Lock, { nav.navigate(Route.SETTINGS) },
-                    secondary = "Needed to see your files", primary = true,
-                )
-            }
-        }
-        clip?.let { c ->
-            item {
-                ActionChip(
-                    "Paste ${c.label}", Icons.Rounded.ContentPaste, { nav.navigate(Route.folder(Fs.root)) },
-                    secondary = "Open a folder, then tap Paste here",
-                )
-            }
-        }
-        item {
-            ActionChip(
-                "All files", Icons.Rounded.Storage, { nav.navigate(Route.folder(Fs.root)) },
-                secondary = "Internal storage", primary = access,
-            )
-        }
-        quick.forEach { q ->
-            item { ActionChip(q.name, q.icon, { nav.navigate(Route.folder(q.dir)) }) }
+    Page(title = "Recent", bottom = "${pins.size} pinned · ${recent.size} recent", accent = Palette.sage) {
+        if (pins.isEmpty() && recent.isEmpty()) {
+            item { Caption("Files you open show up here. Pin folders from their menu.") }
         }
         if (pins.isNotEmpty()) {
             item { Section("Pinned") }
@@ -252,10 +327,6 @@ private fun HomeScreen(nav: NavHostController) {
             item { Section("Recent") }
             recent.forEach { e -> item { EntryChip(e, { nav.openEntry(e) }) } }
         }
-        item { Section("More") }
-        item { ActionChip("Search", Icons.Rounded.Search, { nav.navigate(Route.SEARCH) }) }
-        item { ActionChip("Storage", Icons.Rounded.PieChart, { nav.navigate(Route.STORAGE) }, secondary = "What's using space") }
-        item { ActionChip("Settings", Icons.Rounded.Settings, { nav.navigate(Route.SETTINGS) }) }
     }
 }
 
@@ -264,26 +335,21 @@ private fun HomeScreen(nav: NavHostController) {
 @Composable
 private fun StorageScreen(nav: NavHostController) {
     val version by Fs.version.collectAsStateWithLifecycle()
-    var scanned by remember { mutableIntStateOf(0) }
+    val scanned by StorageStats.scanned.collectAsStateWithLifecycle()
+    val analysis by StorageStats.analysis.collectAsStateWithLifecycle()
     val storage by produceState<StorageInfo?>(null, version) { value = withContext(Dispatchers.IO) { Fs.storage() } }
-    val analysis by produceState<Analysis?>(null, version) {
-        value = null
-        value = withContext(Dispatchers.IO) { Fs.analyze { scanned = it } }
-    }
+    LaunchedEffect(version) { StorageStats.refresh(version) }
 
-    Page {
-        item { PageTitle("Storage") }
+    Page(
+        title = "Storage",
+        inset = 18.dp,
+        behind = { BezelRing(StorageStats.segments(storage, analysis), stroke = 8.dp, inset = 3.dp) },
+    ) {
         item {
-            Orb(progress = storage?.fraction ?: 0f, modifier = Modifier.size(90.dp)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${((storage?.fraction ?: 0f) * 100).toInt()}%", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Palette.onSurface)
-                    Text("used", fontSize = 11.sp, color = Palette.primary)
-                }
-            }
-        }
-        storage?.let { s ->
-            item {
-                InfoCard("", listOf("Total" to Fs.bytes(s.total), "Used" to Fs.bytes(s.used), "Free" to Fs.bytes(s.free)))
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)) {
+                Text("${((storage?.fraction ?: 0f) * 100).toInt()}%", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Palette.onSurface)
+                Text("used", fontSize = 11.sp, color = Palette.primary)
+                Text(storage?.let { "${Fs.bytes(it.free)} free of ${Fs.bytes(it.total)}" } ?: "", fontSize = 11.sp, color = Palette.muted)
             }
         }
         val a = analysis
@@ -330,7 +396,7 @@ private fun KindRow(kind: Kind, bytes: Long, count: Int, fraction: Float) {
             Text(Fs.bytes(bytes), fontSize = 12.sp, color = Palette.onSurface, fontWeight = FontWeight.Medium)
         }
         Spacer(Modifier.size(4.dp))
-        Bar(fraction, kindTint(kind))
+        Bar(animatedFraction(fraction), kindTint(kind))
         Text("$count ${if (count == 1) "file" else "files"}", fontSize = 10.sp, color = Palette.muted, modifier = Modifier.padding(top = 2.dp))
     }
 }
@@ -354,8 +420,7 @@ private fun SearchScreen(nav: NavHostController) {
         if (query.isEmpty()) ask("Search files")
     }
 
-    Page {
-        item { PageTitle(if (query.isEmpty()) "Search" else "“$query”") }
+    Page(title = "Search", bottom = if (query.isEmpty()) null else "“$query”", accent = Palette.sky) {
         item {
             ActionChip(
                 if (query.isEmpty()) "Search files" else "New search", Icons.Rounded.Search, { ask("Search files") },
@@ -383,8 +448,7 @@ private fun SearchScreen(nav: NavHostController) {
 private fun SettingsScreen(onReplayTour: () -> Unit, onWhatsNew: () -> Unit) {
     val access = rememberAccess()
     val unlock = rememberAccessUi()
-    Page {
-        item { PageTitle("Settings") }
+    Page(title = "Settings") {
         item { Section("Browsing") }
         item {
             ToggleChip(
@@ -433,7 +497,8 @@ fun SetupScreen(onDone: () -> Unit) {
     val access = rememberAccess()
     val unlock = rememberAccessUi()
     var step by remember { mutableIntStateOf(0) }
-    Page {
+    val progress = animatedFraction((step + 1) / 3f)
+    Page(inset = 16.dp, behind = { BezelRing(listOf(progress to Palette.primary), stroke = 6.dp) }) {
         item {
             Orb(progress = (step + 1) / 3f, modifier = Modifier.size(80.dp)) {
                 Text("${step + 1}/3", fontSize = 13.sp, color = Palette.onSurface, fontWeight = FontWeight.SemiBold)

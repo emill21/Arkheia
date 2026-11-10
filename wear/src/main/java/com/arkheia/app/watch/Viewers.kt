@@ -28,6 +28,9 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -178,9 +181,11 @@ private fun readText(f: File): TextDoc = try {
 
 // ------------------------------------------------------------------ Audio
 
+/** Music: a spinning record in the middle, progress round the edge, crown to scrub. */
 @Composable
 fun AudioScreen(file: File) {
     val context = LocalContext.current
+    val view = androidx.compose.ui.platform.LocalView.current
     val player = remember(file.path) {
         runCatching {
             MediaPlayer().apply {
@@ -197,10 +202,12 @@ fun AudioScreen(file: File) {
     }
     var playing by remember { mutableStateOf(false) }
     var position by remember { mutableIntStateOf(0) }
+    var spin by remember { mutableFloatStateOf(0f) }
     val duration = remember(player) { player?.duration?.coerceAtLeast(0) ?: 0 }
     val art by produceState<ImageBitmap?>(null, file.path) {
-        value = withContext(Dispatchers.IO) { Thumbs.load(context, file, 200) }
+        value = withContext(Dispatchers.IO) { Thumbs.load(context, file, 240) }
     }
+    val focus = remember { FocusRequester() }
 
     DisposableEffect(player) {
         player?.setOnCompletionListener {
@@ -210,6 +217,7 @@ fun AudioScreen(file: File) {
         onDispose { runCatching { player?.release() } }
     }
     LaunchedEffect(player) {
+        runCatching { focus.requestFocus() }
         if (player != null) {
             player.start()
             playing = true
@@ -217,9 +225,14 @@ fun AudioScreen(file: File) {
         }
     }
     LaunchedEffect(playing) {
+        // Spin the record about 33⅓ rpm-ish while playing.
+        var last = 0L
         while (playing) {
-            position = runCatching { player?.currentPosition ?: 0 }.getOrDefault(0)
-            delay(300)
+            androidx.compose.runtime.withFrameMillis { now ->
+                if (last != 0L) spin = (spin + (now - last) * 0.2f) % 360f
+                last = now
+            }
+            position = runCatching { player?.currentPosition ?: 0 }.getOrDefault(position)
         }
     }
 
@@ -238,67 +251,86 @@ fun AudioScreen(file: File) {
         position = to
     }
 
-    Page {
-        if (player == null) {
-            item { PageTitle(file.name) }
+    if (player == null) {
+        Page(title = file.name) {
             item { Caption("Arkheia can't play this file.") }
             item { ActionChip("Open with…", Icons.Rounded.Apps, { Fs.openWith(context, file) }) }
-            return@Page
         }
-        item {
-            Orb(
-                progress = if (duration > 0) position.toFloat() / duration else 0f,
-                modifier = Modifier.size(104.dp),
-                color = Palette.violet,
-            ) {
-                val a = art
-                Box(contentAlignment = Alignment.Center) {
-                    if (a != null) {
-                        Image(
-                            a, null, contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(78.dp)
-                                .clip(CircleShape),
+        return
+    }
+
+    androidx.wear.compose.material.Scaffold(timeText = { androidx.wear.compose.material.TimeText() }) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .onRotaryScrollEvent {
+                    seek((it.verticalScrollPixels * 60).toInt())
+                    true
+                }
+                .focusRequester(focus)
+                .focusable(),
+            contentAlignment = Alignment.Center,
+        ) {
+            val p = if (duration > 0) position.toFloat() / duration else 0f
+            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                ring(Arcs.topGap, listOf(p to Palette.violet), 1f, 6.dp, 3.dp)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // The record.
+                Box(
+                    Modifier
+                        .size(96.dp)
+                        .graphicsLayer { rotationZ = spin }
+                        .clip(CircleShape)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.sweepGradient(
+                                listOf(Color(0xFF1B1622), Color(0xFF3A2F4A), Color(0xFF1B1622), Color(0xFF3A2F4A), Color(0xFF1B1622))
+                            )
                         )
+                        .clickable { toggle() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                        // Grooves.
+                        val r = size.minDimension / 2
+                        for (i in 1..6) {
+                            drawCircle(Color.White.copy(alpha = 0.05f), r * (0.45f + i * 0.085f), style = androidx.compose.ui.graphics.drawscope.Stroke(1f))
+                        }
                     }
-                    Button(
-                        onClick = { toggle() },
-                        colors = ButtonDefaults.primaryButtonColors(),
-                        modifier = Modifier.size(ButtonDefaults.DefaultButtonSize),
-                    ) {
-                        Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause" else "Play")
+                    val a = art
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(Palette.violet.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
+                        if (a != null) Image(a, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        else Icon(Icons.Rounded.MusicNote, null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(Color.Black))
+                }
+                Text(
+                    file.nameWithoutExtension,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 30.dp, vertical = 4.dp),
+                    textAlign = TextAlign.Center,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Palette.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RoundButton(Icons.Rounded.Replay10, "Back 10 seconds", { seek(-10_000) }, tint = Palette.violet, size = 32.dp)
+                    RoundButton(
+                        if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause" else "Play",
+                        { toggle() }, tint = Palette.violet, size = 42.dp, filled = true,
+                    )
+                    RoundButton(Icons.Rounded.Forward10, "Forward 10 seconds", { seek(10_000) }, tint = Palette.violet, size = 32.dp)
                 }
             }
-        }
-        item {
-            Text(
-                file.nameWithoutExtension,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                textAlign = TextAlign.Center,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Palette.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        item { Caption("${clock(position)} / ${clock(duration)}") }
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
-                Button(onClick = { seek(-10_000) }, colors = ButtonDefaults.secondaryButtonColors(), modifier = Modifier.size(ButtonDefaults.SmallButtonSize)) {
-                    Icon(Icons.Rounded.Replay10, "Back 10 seconds")
-                }
-                Button(onClick = { seek(10_000) }, colors = ButtonDefaults.secondaryButtonColors(), modifier = Modifier.size(ButtonDefaults.SmallButtonSize)) {
-                    Icon(Icons.Rounded.Forward10, "Forward 10 seconds")
-                }
+            CurvedCaption("${clock(position)} / ${clock(duration)}", color = Palette.violet)
+            Box(Modifier.align(Alignment.BottomEnd).padding(end = 26.dp, bottom = 34.dp)) {
+                RoundButton(Icons.AutoMirrored.Rounded.VolumeUp, "Volume", {
+                    val am = context.getSystemService(AudioManager::class.java)
+                    am?.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI)
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                }, tint = Palette.muted, size = 26.dp)
             }
-        }
-        item {
-            ActionChip("Volume", Icons.AutoMirrored.Rounded.VolumeUp, {
-                val am = context.getSystemService(AudioManager::class.java)
-                am?.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI)
-            }, secondary = "Plays while this screen is open")
         }
     }
 }
