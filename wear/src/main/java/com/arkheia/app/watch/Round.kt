@@ -6,6 +6,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -327,7 +329,7 @@ fun LiquidOrb(
             val w = size.width
             val h = size.height
             drawCircle(Brush.verticalGradient(listOf(Color(0xFF14100A), Color(0xFF2A1F10))))
-            androidx.compose.ui.graphics.drawscope.rotate(tilt) {
+            rotate(tilt) {
                 val surface = h * (1f - shown.coerceIn(0.04f, 0.96f))
                 fun wave(amp: Float, length: Float, shift: Float): androidx.compose.ui.graphics.Path {
                     val p = androidx.compose.ui.graphics.Path()
