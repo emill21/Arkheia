@@ -29,6 +29,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.AspectRatio
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -369,7 +371,10 @@ private fun ZoomableImage(file: File, active: Boolean, onZoomChange: (Boolean) -
 
 // ------------------------------------------------------------------ Video
 
-/** Full-screen video. Tap for controls, double-tap to fill the screen, turn the crown to seek. */
+/**
+ * Full-screen video. Tap for controls, double-tap to fill the screen. The crown skips through the
+ * video or changes the volume; the little crown button in the controls switches between them.
+ */
 @OptIn(UnstableApi::class)
 @Composable
 fun VideoScreen(file: File) {
@@ -391,6 +396,12 @@ fun VideoScreen(file: File) {
     var fill by remember { mutableStateOf(false) }
     var lastTouch by remember { mutableLongStateOf(0L) }
     val focus = remember { FocusRequester() }
+    RequestFocusWhenResumed(focus)
+    var crownAcc by remember { mutableFloatStateOf(0f) }
+    var volume by remember { mutableFloatStateOf(Volume.level(context)) }
+    var volumeShownAt by remember { mutableLongStateOf(0L) }
+    var hint by remember { mutableStateOf<String?>(null) }
+    val haptics = LocalView.current
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -431,8 +442,17 @@ fun VideoScreen(file: File) {
             player.release()
         }
     }
+    DisposableEffect(Unit) {
+        com.arkheia.app.StemButton.listening++
+        onDispose { com.arkheia.app.StemButton.listening-- }
+    }
     LaunchedEffect(player) {
-        runCatching { focus.requestFocus() }
+        com.arkheia.app.StemButton.presses.collect {
+            if (player.isPlaying) player.pause() else player.play()
+            controls = true
+        }
+    }
+    LaunchedEffect(player) {
         while (true) {
             position = player.currentPosition
             duration = player.duration.takeIf { it > 0 } ?: 0L
@@ -447,9 +467,31 @@ fun VideoScreen(file: File) {
         }
     }
 
+    LaunchedEffect(volumeShownAt) {
+        if (volumeShownAt > 0) {
+            delay(1_500)
+            volumeShownAt = 0
+        }
+    }
+    LaunchedEffect(hint) {
+        if (hint != null) {
+            delay(1_400)
+            hint = null
+        }
+    }
+
     fun touch() {
         lastTouch = System.currentTimeMillis()
         controls = true
+    }
+    fun switchCrown() {
+        Prefs.crownVolume = !Prefs.crownVolume
+        hint = if (Prefs.crownVolume) "Crown: volume" else "Crown: skip"
+        if (Prefs.crownVolume) {
+            volume = Volume.level(context)
+            volumeShownAt = System.currentTimeMillis()
+        }
+        touch()
     }
     fun seekBy(ms: Long) {
         val to = (player.currentPosition + ms).coerceIn(0L, if (duration > 0) duration else Long.MAX_VALUE)
@@ -463,7 +505,19 @@ fun VideoScreen(file: File) {
             .fillMaxSize()
             .background(Color.Black)
             .onRotaryScrollEvent {
-                if (abs(it.verticalScrollPixels) > 0.5f) seekBy((it.verticalScrollPixels * 40).toLong())
+                if (Prefs.crownVolume) {
+                    // Volume: one step per notch of the crown.
+                    crownAcc += it.verticalScrollPixels
+                    if (abs(crownAcc) > 38f) {
+                        Volume.step(context, up = crownAcc > 0)
+                        volume = Volume.level(context)
+                        volumeShownAt = System.currentTimeMillis()
+                        haptics.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        crownAcc = 0f
+                    }
+                } else if (abs(it.verticalScrollPixels) > 0.5f) {
+                    seekBy((it.verticalScrollPixels * 40).toLong())
+                }
                 true
             }
             .focusRequester(focus)
@@ -513,6 +567,22 @@ fun VideoScreen(file: File) {
             return@Box
         }
 
+        AnimatedVisibility(volumeShownAt > 0, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()) {
+            VolumeArc(volume, Palette.sky)
+        }
+        hint?.let { h ->
+            Text(
+                h,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(top = 96.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                fontSize = 11.sp,
+                color = Palette.sky,
+            )
+        }
         AnimatedVisibility(controls || !playing, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
                 // Progress ring around the edge of the round screen.
@@ -557,6 +627,12 @@ fun VideoScreen(file: File) {
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text("${clockMs(position)} / ${clockMs(duration)}", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                    Icon(
+                        if (Prefs.crownVolume) Icons.AutoMirrored.Rounded.VolumeUp else Icons.Rounded.FastForward,
+                        "Switch what the crown does",
+                        tint = Palette.sky,
+                        modifier = Modifier.size(18.dp).clickable { switchCrown() },
+                    )
                     Icon(
                         Icons.Rounded.AspectRatio, "Fill screen",
                         tint = if (fill) Palette.sky else Color.White.copy(alpha = 0.7f),

@@ -19,6 +19,12 @@ import com.arkheia.app.watch.FilesTileService
 import com.arkheia.app.watch.SetupScreen
 import com.arkheia.app.watch.WhatsNewScreen
 
+/** Side-button presses, for screens that want them (the video player plays/pauses). */
+object StemButton {
+    val presses = kotlinx.coroutines.flow.MutableSharedFlow<Int>(extraBufferCapacity = 1)
+    @Volatile var listening = 0
+}
+
 /** Arkheia: a file explorer for Wear OS. */
 class MainActivity : ComponentActivity() {
     /** A folder the tile asked us to open. */
@@ -74,6 +80,19 @@ class MainActivity : ComponentActivity() {
         runCatching {
             androidx.wear.tiles.TileService.getUpdater(this).requestUpdate(FilesTileService::class.java)
         }
+    }
+
+    /** Extra side buttons, on watches that hand them to apps (Pixel Watch keeps both for itself). */
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        if (event?.repeatCount == 0 && keyCode in listOf(
+                android.view.KeyEvent.KEYCODE_STEM_1,
+                android.view.KeyEvent.KEYCODE_STEM_2,
+                android.view.KeyEvent.KEYCODE_STEM_3,
+            )
+        ) {
+            if (StemButton.listening > 0 && StemButton.presses.tryEmit(keyCode)) return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     enum class Screen { Setup, WhatsNew, Main }

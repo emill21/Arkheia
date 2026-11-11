@@ -175,7 +175,7 @@ fun RadialDial(
     val view = LocalView.current
     val focus = remember { FocusRequester() }
     var acc by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    RequestFocusWhenResumed(focus)
 
     BoxWithConstraints(
         modifier
@@ -401,6 +401,78 @@ fun Aurora(color: Color, modifier: Modifier = Modifier) {
             Brush.sweepGradient(
                 listOf(Color.Transparent, tint.copy(alpha = 0.16f), Color.Transparent, tint.copy(alpha = 0.10f), Color.Transparent),
             )
+        )
+    }
+}
+
+
+// ------------------------------------------------------------------ Crown helpers
+
+/**
+ * Keep the crown pointed at this screen: ask for focus when it appears and every time the app
+ * comes back to the front (a single early request can be lost while the window is still opening).
+ */
+@Composable
+fun RequestFocusWhenResumed(focus: FocusRequester) {
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(Unit) {
+        repeat(6) { i ->
+            runCatching { focus.requestFocus() }
+            kotlinx.coroutines.delay(80L * (i + 1))
+        }
+    }
+    androidx.compose.runtime.DisposableEffect(lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) runCatching { focus.requestFocus() }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+}
+
+/** Media volume, changed quietly so we can draw our own level on the edge. */
+object Volume {
+    private fun am(c: android.content.Context) = c.getSystemService(android.media.AudioManager::class.java)
+
+    /** 0..1 */
+    fun level(c: android.content.Context): Float {
+        val a = am(c) ?: return 0f
+        val max = a.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        return a.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / max
+    }
+
+    fun step(c: android.content.Context, up: Boolean) {
+        am(c)?.adjustStreamVolume(
+            android.media.AudioManager.STREAM_MUSIC,
+            if (up) android.media.AudioManager.ADJUST_RAISE else android.media.AudioManager.ADJUST_LOWER,
+            0,
+        )
+    }
+}
+
+/** The volume level as an arc up the left edge of the screen, with the percentage beside it. */
+@Composable
+fun VolumeArc(level: Float, color: Color, modifier: Modifier = Modifier) {
+    val shown = animatedFraction(level)
+    Box(modifier.fillMaxSize()) {
+        Canvas(Modifier.fillMaxSize()) {
+            // From 7:30 up to 10:30 on the left side, filling upwards.
+            ring(listOf(135f to 90f), emptyList(), 1f, 7.dp, 3.dp)
+            val sw = 7.dp.toPx()
+            val pad = 3.dp.toPx() + sw / 2
+            if (shown > 0.005f) {
+                drawArc(
+                    color, 135f, 90f * shown, false,
+                    Offset(pad, pad), Size(size.width - pad * 2, size.height - pad * 2),
+                    style = Stroke(sw, cap = StrokeCap.Round),
+                )
+            }
+        }
+        androidx.wear.compose.material.Text(
+            "${(level * 100).toInt()}%",
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 20.dp),
+            fontSize = 12.sp,
+            color = color,
         )
     }
 }

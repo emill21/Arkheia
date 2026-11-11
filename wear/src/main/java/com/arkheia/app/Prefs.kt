@@ -17,6 +17,7 @@ object Prefs {
     private val _sort = mutableStateOf(Sort.Name)
     private val _pins = mutableStateOf<List<String>>(emptyList())
     private val _recent = mutableStateOf<List<String>>(emptyList())
+    private val _crownVolume = mutableStateOf(false)
 
     fun init(c: Context) {
         Fs.init(c)
@@ -29,6 +30,7 @@ object Prefs {
         _sort.value = runCatching { Sort.valueOf(sp.getString("sort", null) ?: "Name") }.getOrDefault(Sort.Name)
         _pins.value = sp.getString("pins", "").orEmpty().lines().filter { it.isNotBlank() }
         _recent.value = sp.getString("recent", "").orEmpty().lines().filter { it.isNotBlank() }
+        _crownVolume.value = sp.getBoolean("crownVolume", false)
     }
 
     var onboarded: Boolean
@@ -50,6 +52,11 @@ object Prefs {
     var sort: Sort
         get() = _sort.value
         set(v) { _sort.value = v; sp.edit().putString("sort", v.name).apply() }
+
+    /** In the video and music players: does the crown change the volume (true) or skip (false)? */
+    var crownVolume: Boolean
+        get() = _crownVolume.value
+        set(v) { _crownVolume.value = v; sp.edit().putBoolean("crownVolume", v).apply() }
 
     var pins: List<String>
         get() = _pins.value

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay10
@@ -208,6 +209,16 @@ fun AudioScreen(file: File) {
         value = withContext(Dispatchers.IO) { Thumbs.load(context, file, 240) }
     }
     val focus = remember { FocusRequester() }
+    RequestFocusWhenResumed(focus)
+    var crownAcc by remember { mutableFloatStateOf(0f) }
+    var volume by remember { mutableFloatStateOf(Volume.level(context)) }
+    var volumeShownAt by remember { mutableStateOf(0L) }
+    LaunchedEffect(volumeShownAt) {
+        if (volumeShownAt > 0) {
+            delay(1_500)
+            volumeShownAt = 0L
+        }
+    }
 
     DisposableEffect(player) {
         player?.setOnCompletionListener {
@@ -217,7 +228,6 @@ fun AudioScreen(file: File) {
         onDispose { runCatching { player?.release() } }
     }
     LaunchedEffect(player) {
-        runCatching { focus.requestFocus() }
         if (player != null) {
             player.start()
             playing = true
@@ -264,7 +274,18 @@ fun AudioScreen(file: File) {
             Modifier
                 .fillMaxSize()
                 .onRotaryScrollEvent {
-                    seek((it.verticalScrollPixels * 60).toInt())
+                    if (Prefs.crownVolume) {
+                        crownAcc += it.verticalScrollPixels
+                        if (kotlin.math.abs(crownAcc) > 38f) {
+                            Volume.step(context, up = crownAcc > 0)
+                            volume = Volume.level(context)
+                            volumeShownAt = System.currentTimeMillis()
+                            view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                            crownAcc = 0f
+                        }
+                    } else {
+                        seek((it.verticalScrollPixels * 60).toInt())
+                    }
                     true
                 }
                 .focusRequester(focus)
@@ -325,12 +346,21 @@ fun AudioScreen(file: File) {
             }
             CurvedCaption("${clock(position)} / ${clock(duration)}", color = Palette.violet)
             Box(Modifier.align(Alignment.BottomEnd).padding(end = 26.dp, bottom = 34.dp)) {
-                RoundButton(Icons.AutoMirrored.Rounded.VolumeUp, "Volume", {
-                    val am = context.getSystemService(AudioManager::class.java)
-                    am?.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI)
-                    view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                }, tint = Palette.muted, size = 26.dp)
+                RoundButton(
+                    if (Prefs.crownVolume) Icons.AutoMirrored.Rounded.VolumeUp else Icons.Rounded.FastForward,
+                    "Switch what the crown does",
+                    {
+                        Prefs.crownVolume = !Prefs.crownVolume
+                        Fs.toast(context, if (Prefs.crownVolume) "Crown: volume" else "Crown: skip")
+                        if (Prefs.crownVolume) {
+                            volume = Volume.level(context)
+                            volumeShownAt = System.currentTimeMillis()
+                        }
+                    },
+                    tint = Palette.violet, size = 28.dp, filled = Prefs.crownVolume,
+                )
             }
+            if (volumeShownAt > 0) VolumeArc(volume, Palette.violet)
         }
     }
 }

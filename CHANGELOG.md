@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6 · Crown controls (2026-11-11)
+
+- Video and music: the crown now skips through or changes the volume. Tap the crown button in the controls to switch; Arkheia remembers your choice
+- Volume shows as a ring up the left edge of the screen while you turn
+- The home dial reliably follows the crown now, every time you open the app or come back to it
+- On watches whose side buttons apps can use, a press plays or pauses a video
+
 ## 1.5.1 · Labels and level liquid (2026-11-10)
 
 - The liquid now tilts the right way
