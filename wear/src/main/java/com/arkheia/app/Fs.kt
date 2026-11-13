@@ -148,6 +148,10 @@ object Fs {
     fun list(dir: File, showHidden: Boolean, sort: Sort, foldersFirst: Boolean): List<Entry>? {
         val files = dir.listFiles() ?: return null
         val entries = files.filter { visible(it.name, showHidden) }.map { entry(it, showHidden) }
+        return sorted(entries, sort, foldersFirst)
+    }
+
+    fun sorted(entries: List<Entry>, sort: Sort, foldersFirst: Boolean): List<Entry> {
         val byName = Comparator<Entry> { a, b -> a.name.compareTo(b.name, ignoreCase = true) }
         val order: Comparator<Entry> = when (sort) {
             Sort.Name -> byName

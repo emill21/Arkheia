@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7 · Phone (2026-11-12)
+
+- Phone: browse your phone's files from the watch, over Bluetooth. Open it from the new Phone button on the home dial, or from Phone files in Syndesia on the watch
+- Tap a file on your phone to copy it to Download › From phone on the watch and open it: photos, music, videos and text open right in Arkheia
+- Needs Syndesia on both your phone and your watch. The first time, your phone asks you to turn on All files access for Syndesia
+
 ## 1.6 · Crown controls (2026-11-11)
 
 - Video and music: the crown now skips through or changes the volume. Tap the crown button in the controls to switch; Arkheia remembers your choice

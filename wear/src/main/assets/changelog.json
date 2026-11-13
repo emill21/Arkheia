@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.7",
+    "date": "2026-11-12",
+    "title": "Phone",
+    "items": [
+      "Phone: browse your phone's files from the watch, over Bluetooth. Open it from the new Phone button on the home dial, or from Phone files in Syndesia on the watch",
+      "Tap a file on your phone to copy it to Download › From phone on the watch and open it: photos, music, videos and text open right in Arkheia",
+      "Needs Syndesia on both your phone and your watch. The first time, your phone asks you to turn on All files access for Syndesia"
+    ]
+  },
+  {
     "version": "1.6",
     "date": "2026-11-11",
     "title": "Crown controls",

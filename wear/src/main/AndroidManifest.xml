@@ -18,6 +18,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <queries>
+        <!-- Syndesia carries Phone requests to your phone over Bluetooth. -->
+        <package android:name="com.syndesia.app" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="*/*" />

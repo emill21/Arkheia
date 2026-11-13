@@ -27,6 +27,7 @@ your settings and access.
 - Swipe right to go back a folder. Tap a file for its details and actions; tap a folder to go in.
 - At the bottom of every folder: **New folder**, **Sort**, **Pin to home**, and the folder's own actions.
 - **Copy** or **Move** a file, open the destination folder, and tap **Paste here** at the top.
+- **Phone** on the home dial browses your phone's files over Bluetooth, through [Syndesia](https://github.com/emill21/Syndesia) (install it on both the phone and the watch). Tap a file to copy it to `Download/From phone` on the watch.
 - Android keeps some folders private (like `Android/data`), even from file managers.
 
 ## Build

@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
-        if (savedInstanceState == null) openRequest.value = intent?.getStringExtra(EXTRA_OPEN)
+        if (savedInstanceState == null) openRequest.value = requestFrom(intent)
         val latest = BuildConfig.VERSION_CODE
         setContent {
             ArkheiaTheme {
@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.getStringExtra(EXTRA_OPEN)?.let { openRequest.value = it }
+        requestFrom(intent)?.let { openRequest.value = it }
     }
 
     override fun onResume() {
@@ -95,9 +95,14 @@ class MainActivity : ComponentActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    /** A folder from the tile, or your phone's files from Syndesia. */
+    private fun requestFrom(i: Intent?): String? =
+        if (i?.getBooleanExtra(EXTRA_PHONE, false) == true) com.arkheia.app.watch.PHONE_REQUEST else i?.getStringExtra(EXTRA_OPEN)
+
     enum class Screen { Setup, WhatsNew, Main }
 
     companion object {
         const val EXTRA_OPEN = "open"
+        const val EXTRA_PHONE = "phone"
     }
 }

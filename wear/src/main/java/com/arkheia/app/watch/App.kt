@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Photo
 import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.PieChart
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Replay
@@ -89,6 +90,9 @@ private const val B64 = Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
 private fun enc(path: String) = Base64.encodeToString(path.toByteArray(), B64)
 private fun dec(s: String) = String(Base64.decode(s, B64))
 
+/** Open request meaning "your phone's files" (Syndesia's Phone files button). */
+const val PHONE_REQUEST = "phone:"
+
 object Route {
     const val HOME = "home"
     const val SETTINGS = "settings"
@@ -102,6 +106,8 @@ object Route {
     fun audio(f: File) = "audio/${enc(f.path)}"
     fun video(f: File) = "video/${enc(f.path)}"
     fun gallery(f: File) = "gallery/${enc(f.path)}"
+    /** A folder on your phone ("" = its main storage). */
+    fun phone(path: String) = "phone/${enc(path.ifEmpty { "~" })}"
     /** Is this folder the screen on top right now? */
     fun isCurrentFolder(nav: NavHostController, f: File): Boolean {
         val top = nav.currentBackStackEntry ?: return false
@@ -145,7 +151,7 @@ fun ArkheiaApp(openRequest: String?, onOpened: () -> Unit, onReplayTour: () -> U
     LaunchedEffect(openRequest) {
         val path = openRequest ?: return@LaunchedEffect
         nav.popBackStack(Route.HOME, inclusive = false)
-        nav.navigate(Route.folder(File(path)))
+        nav.navigate(if (path == PHONE_REQUEST) Route.phone("") else Route.folder(File(path)))
         onOpened()
     }
 
@@ -166,6 +172,7 @@ fun ArkheiaApp(openRequest: String?, onOpened: () -> Unit, onReplayTour: () -> U
         composable("video/{p}") { VideoScreen(File(dec(it.arguments?.getString("p").orEmpty()))) }
         composable("gallery/{p}") { GalleryScreen(File(dec(it.arguments?.getString("p").orEmpty())), nav) }
         composable("audio/{p}") { AudioScreen(File(dec(it.arguments?.getString("p").orEmpty()))) }
+        composable("phone/{p}") { PhoneFolderScreen(dec(it.arguments?.getString("p").orEmpty()).let { p -> if (p == "~") "" else p }, nav) }
     }
 }
 
@@ -235,12 +242,14 @@ private fun HomeScreen(nav: NavHostController) {
     val quick by produceState(emptyList<Quick>(), access, version) { value = withContext(Dispatchers.IO) { quickFolders() } }
     LaunchedEffect(version, access) { if (access) StorageStats.refresh(version) }
     var selected by rememberSaveable { mutableIntStateOf(-1) }
+    val phone = LocalContext.current.let { c -> remember { com.arkheia.app.PhoneFs.syndesiaInstalled(c) } }
 
     val items = buildList {
         add(RadialItem("All files", Icons.Rounded.Storage, Palette.primary, "Internal storage", shortLabel = "Files") { nav.navigate(Route.folder(Fs.root)) })
         quick.take(3).forEach { q ->
             add(RadialItem(q.name, q.icon, q.tint, Fs.items(q.children)) { nav.navigate(Route.folder(q.dir)) })
         }
+        if (phone) add(RadialItem("Phone", Icons.Rounded.PhoneAndroid, Palette.sky, "Your phone's files") { nav.navigate(Route.phone("")) })
         add(RadialItem("Recent", Icons.Rounded.History, Palette.sage, "Recent & pinned") { nav.navigate(Route.RECENT) })
         add(RadialItem("Search", Icons.Rounded.Search, Palette.sky, "Find by name") { nav.navigate(Route.SEARCH) })
         add(RadialItem("Storage", Icons.Rounded.PieChart, Palette.primary, "What's using space") { nav.navigate(Route.STORAGE) })
