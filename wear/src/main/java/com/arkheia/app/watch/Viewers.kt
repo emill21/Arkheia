@@ -85,7 +85,7 @@ object Thumbs {
     fun load(context: Context, f: File, max: Int): ImageBitmap? = runCatching {
         val bmp: Bitmap? = when (Fs.kindOf(f)) {
             Kind.Image -> decode(f, max)
-            Kind.Video -> ThumbnailUtils.createVideoThumbnail(f, Size(max, max), null)
+            Kind.Video -> firstFrame(f, max) ?: ThumbnailUtils.createVideoThumbnail(f, Size(max, max), null)
             Kind.Audio -> ThumbnailUtils.createAudioThumbnail(f, Size(max, max), null)
             Kind.Apk -> {
                 val pm = context.packageManager
@@ -99,6 +99,20 @@ object Thumbs {
         }
         bmp?.asImageBitmap()
     }.getOrNull()
+
+    /** The video's very first frame, scaled down. */
+    private fun firstFrame(f: File, max: Int): Bitmap? {
+        val r = android.media.MediaMetadataRetriever()
+        return try {
+            r.setDataSource(f.path)
+            r.getScaledFrameAtTime(0L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, max, max)
+                ?: r.getFrameAtTime(0L)
+        } catch (e: Exception) {
+            null
+        } finally {
+            runCatching { r.release() }
+        }
+    }
 
     /** Decodes a photo at roughly [max] px, the right way up. */
     fun decode(f: File, max: Int): Bitmap? {

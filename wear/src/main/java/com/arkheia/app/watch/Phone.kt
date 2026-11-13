@@ -169,6 +169,7 @@ fun PhoneFolderScreen(path: String, nav: NavHostController) {
                 },
                 detail = if (e.isDir) (if (e.children < 0) "Can't open" else Fs.items(e.children)) else null,
                 selected = if (selecting && !e.isDir) e.path in chosen else null,
+                previews = false,
                 onLongClick = if (e.isDir) null else ({
                     if (!selecting) { selecting = true; chosen.clear() }
                     if (e.path !in chosen) chosen.add(e.path)

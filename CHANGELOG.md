@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9 · Previews (2026-11-13)
+
+- Files show a preview in every list: photos show the picture, videos show their first frame with a play badge
+- Songs show their album art and APKs show the app's icon
+- Text files show their first line under the name
+- Previews load two at a time in the background and are remembered, so scrolling stays smooth
+
 ## 1.8 · Hold to select (2026-11-12)
 
 - Hold a file or folder to start selecting it, then tap more to add them. Copy, move, zip or delete them together

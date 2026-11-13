@@ -103,23 +103,100 @@ import kotlin.math.abs
 // ------------------------------------------------------------------ Thumbnail cache
 
 object ThumbCache {
-    private val cache = LruCache<String, ImageBitmap>(90)
+    private val cache = LruCache<String, ImageBitmap>(120)
+    /** Files we tried and couldn't make a picture of (e.g. songs with no art), so we don't retry. */
+    private val misses = LruCache<String, Boolean>(400)
+    private val text = LruCache<String, String>(200)
 
-    fun peek(f: File): ImageBitmap? = cache.get(f.path + f.lastModified())
+    /** At most two thumbnails decode at once, so scrolling stays smooth. */
+    @kotlin.OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val io = Dispatchers.IO.limitedParallelism(2)
+
+    private fun key(f: File) = f.path + "|" + f.lastModified()
+
+    fun peek(f: File): ImageBitmap? = cache.get(key(f))
+    fun missed(f: File) = misses.get(key(f)) == true
 
     /** Call off the main thread. */
     fun load(c: Context, f: File, max: Int = 160): ImageBitmap? {
-        val k = f.path + f.lastModified()
+        val k = key(f)
         cache.get(k)?.let { return it }
-        return Thumbs.load(c, f, max)?.also { cache.put(k, it) }
+        if (misses.get(k) == true) return null
+        val b = Thumbs.load(c, f, max)
+        if (b != null) cache.put(k, b) else misses.put(k, true)
+        return b
     }
+
+    fun peekText(f: File): String? = text.get(key(f))
+
+    /** The first line of a text file, for its preview. Call off the main thread. */
+    fun firstLine(f: File): String {
+        val k = key(f)
+        text.get(k)?.let { return it }
+        val line = runCatching {
+            val buf = ByteArray(512)
+            val n = f.inputStream().use { it.read(buf) }.coerceAtLeast(0)
+            if (buf.take(n).any { it == 0.toByte() }) "" else
+                String(buf, 0, n, Charsets.UTF_8).lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() }.orEmpty().take(80)
+        }.getOrDefault("")
+        text.put(k, line)
+        return line
+    }
+}
+
+/**
+ * A file's preview for lists: the photo itself, a video's first frame (with a play badge),
+ * album art or an app icon; otherwise its type icon.
+ */
+@Composable
+fun FilePreview(e: Entry, size: androidx.compose.ui.unit.Dp = 36.dp) {
+    val context = LocalContext.current
+    val img by produceState(ThumbCache.peek(e.file), e.path, e.modified) {
+        if (value == null && !ThumbCache.missed(e.file)) value = withContext(ThumbCache.io) { ThumbCache.load(context, e.file) }
+    }
+    Box(
+        Modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.28f))
+            .background(kindTint(e.kind).copy(alpha = 0.16f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        val i = img
+        if (i != null) {
+            Image(i, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else {
+            Icon(kindIcon(e.kind), null, tint = kindTint(e.kind), modifier = Modifier.size(size * 0.5f))
+        }
+        if (e.kind == Kind.Video) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(2.dp)
+                    .size(size * 0.42f)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.PlayArrow, null, tint = Color.White, modifier = Modifier.size(size * 0.3f))
+            }
+        }
+    }
+}
+
+/** First line of a text file, loaded in the background; null until known or if there isn't one. */
+@Composable
+fun rememberFirstLine(e: Entry): String? {
+    val line by produceState(ThumbCache.peekText(e.file), e.path, e.modified) {
+        if (value == null) value = withContext(ThumbCache.io) { ThumbCache.firstLine(e.file) }
+    }
+    return line?.takeIf { it.isNotEmpty() }
 }
 
 @Composable
 private fun Thumb(e: Entry, onClick: () -> Unit) {
     val context = LocalContext.current
     val img by produceState(ThumbCache.peek(e.file), e.path) {
-        if (value == null) value = withContext(Dispatchers.IO) { ThumbCache.load(context, e.file) }
+        if (value == null) value = withContext(ThumbCache.io) { ThumbCache.load(context, e.file) }
     }
     Box(
         Modifier

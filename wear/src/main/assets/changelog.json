@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.9",
+    "date": "2026-11-13",
+    "title": "Previews",
+    "items": [
+      "Files show a preview in every list: photos show the picture, videos show their first frame with a play badge",
+      "Songs show their album art and APKs show the app's icon",
+      "Text files show their first line under the name",
+      "Previews load two at a time in the background and are remembered, so scrolling stays smooth"
+    ]
+  },
+  {
     "version": "1.8",
     "date": "2026-11-12",
     "title": "Hold to select",

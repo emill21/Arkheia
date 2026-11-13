@@ -257,8 +257,18 @@ private val fileChipColors @Composable get() = ChipDefaults.chipColors(
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun EntryChip(e: Entry, onClick: () -> Unit, detail: String? = null, selected: Boolean? = null, onLongClick: (() -> Unit)? = null) {
+fun EntryChip(
+    e: Entry,
+    onClick: () -> Unit,
+    detail: String? = null,
+    selected: Boolean? = null,
+    onLongClick: (() -> Unit)? = null,
+    /** Off for files that aren't on this watch (the phone browser). */
+    previews: Boolean = true,
+) {
     val locked = e.isDir && e.children < 0
+    val preview = previews && (e.kind == Kind.Image || e.kind == Kind.Video || e.kind == Kind.Audio || e.kind == Kind.Apk)
+    val firstLine = if (previews && e.kind == Kind.Text && detail == null) rememberFirstLine(e) else null
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val on = selected == true
     Row(
@@ -282,13 +292,13 @@ fun EntryChip(e: Entry, onClick: () -> Unit, detail: String? = null, selected: B
         when (selected) {
             true -> IconBlob(Icons.Rounded.CheckCircle, Palette.sage)
             false -> IconBlob(Icons.Rounded.RadioButtonUnchecked, Palette.muted)
-            null -> IconBlob(kindIcon(e.kind, locked), kindTint(e.kind))
+            null -> if (preview) FilePreview(e) else IconBlob(kindIcon(e.kind, locked), kindTint(e.kind))
         }
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             Text(e.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp, color = Palette.onSurface)
             Text(
-                detail ?: if (e.isDir) Fs.items(e.children) else "${Fs.bytes(e.size)} · ${Fs.date(e.modified)}",
+                detail ?: firstLine ?: if (e.isDir) Fs.items(e.children) else "${Fs.bytes(e.size)} · ${Fs.date(e.modified)}",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontSize = 11.sp,
