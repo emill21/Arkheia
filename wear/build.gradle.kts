@@ -16,8 +16,8 @@ android {
         // Android 10 target: the last one where the regular "Files" permission covers every file,
         // which is the permission watches show in App info. (Newer targets only get photos/music.)
         targetSdk = 29
-        versionCode = 9
-        versionName = "1.7"
+        versionCode = 10
+        versionName = "1.8"
     }
 
     val signing = Properties().apply {

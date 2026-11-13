@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.8",
+    "date": "2026-11-12",
+    "title": "Hold to select",
+    "items": [
+      "Hold a file or folder to start selecting it, then tap more to add them. Copy, move, zip or delete them together",
+      "The selection buttons now sit at the top of the folder, so you don't have to scroll down to reach them",
+      "Phone: hold files on your phone to pick several and copy them all to the watch at once"
+    ]
+  },
+  {
     "version": "1.7",
     "date": "2026-11-12",
     "title": "Phone",

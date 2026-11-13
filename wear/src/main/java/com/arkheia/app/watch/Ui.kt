@@ -2,6 +2,7 @@ package com.arkheia.app.watch
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -250,35 +251,51 @@ private val fileChipColors @Composable get() = ChipDefaults.chipColors(
     iconColor = Palette.primary,
 )
 
-/** A file or folder in a list. */
+/**
+ * A file or folder in a list. Holding it calls [onLongClick] (start selecting). Drawn by hand
+ * rather than with Chip, which has no long press on Wear.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun EntryChip(e: Entry, onClick: () -> Unit, detail: String? = null, selected: Boolean? = null) {
+fun EntryChip(e: Entry, onClick: () -> Unit, detail: String? = null, selected: Boolean? = null, onLongClick: (() -> Unit)? = null) {
     val locked = e.isDir && e.children < 0
-    Chip(
-        onClick = onClick,
-        label = { Text(e.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        secondaryLabel = {
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val on = selected == true
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(if (on) Color(0xFF2B3424) else Palette.surface)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick?.let { f ->
+                    {
+                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        f()
+                    }
+                },
+            )
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when (selected) {
+            true -> IconBlob(Icons.Rounded.CheckCircle, Palette.sage)
+            false -> IconBlob(Icons.Rounded.RadioButtonUnchecked, Palette.muted)
+            null -> IconBlob(kindIcon(e.kind, locked), kindTint(e.kind))
+        }
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
+            Text(e.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp, color = Palette.onSurface)
             Text(
                 detail ?: if (e.isDir) Fs.items(e.children) else "${Fs.bytes(e.size)} · ${Fs.date(e.modified)}",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                fontSize = 11.sp,
+                color = if (on) Palette.sage else Palette.muted,
             )
-        },
-        icon = {
-            when (selected) {
-                true -> IconBlob(Icons.Rounded.CheckCircle, Palette.sage)
-                false -> IconBlob(Icons.Rounded.RadioButtonUnchecked, Palette.muted)
-                null -> IconBlob(kindIcon(e.kind, locked), kindTint(e.kind))
-            }
-        },
-        colors = if (selected == true) ChipDefaults.chipColors(
-            backgroundColor = Color(0xFF2B3424),
-            contentColor = Palette.onSurface,
-            secondaryContentColor = Palette.sage,
-            iconColor = Palette.sage,
-        ) else fileChipColors,
-        modifier = Modifier.fillMaxWidth(),
-    )
+        }
+    }
 }
 
 /** An icon sitting in a softly tinted circle. */

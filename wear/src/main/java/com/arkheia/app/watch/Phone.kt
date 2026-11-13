@@ -1,5 +1,6 @@
 package com.arkheia.app.watch
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Folder
@@ -42,6 +43,9 @@ fun PhoneFolderScreen(path: String, nav: NavHostController) {
     var reload by remember { mutableIntStateOf(0) }
     var copying by remember { mutableStateOf<Entry?>(null) }
     var copied by remember { mutableLongStateOf(0L) }
+    var selecting by remember(path) { mutableStateOf(false) }
+    val chosen = remember(path) { androidx.compose.runtime.mutableStateListOf<String>() }
+    var batch by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     LaunchedEffect(path, reload, showHidden, sort, foldersFirst) {
         loading = true
@@ -66,6 +70,27 @@ fun PhoneFolderScreen(path: String, nav: NavHostController) {
         }
     }
 
+    /** Copies every chosen file (folders are skipped) to the watch, one after another. */
+    fun copyChosen() {
+        val files = listing?.entries?.filter { it.path in chosen && !it.isDir }.orEmpty()
+        selecting = false
+        chosen.clear()
+        if (files.isEmpty()) { Fs.toast(context, "Pick files to copy (folders can't be copied yet)"); return }
+        scope.launch {
+            var ok = 0
+            files.forEachIndexed { i, e ->
+                batch = i + 1 to files.size
+                copying = e
+                copied = 0
+                val r = withContext(Dispatchers.IO) { runCatching { PhoneFs.copyToWatch(context, e) { copied = it } } }
+                if (r.isSuccess) ok++ else Fs.toast(context, r.exceptionOrNull()?.message ?: "Couldn't copy ${e.name}")
+            }
+            copying = null
+            batch = null
+            Fs.toast(context, "Copied $ok of ${files.size} to Download › From phone")
+        }
+    }
+
     val l = listing
     val isRoot = l == null || l.path == l.root
     val name = when {
@@ -81,7 +106,8 @@ fun PhoneFolderScreen(path: String, nav: NavHostController) {
             { BezelRing(listOf(animatedFraction(if (c.size > 0) copied.toFloat() / c.size else 0f) to Palette.sky), stroke = 6.dp) }
         } else null,
         bottom = when {
-            c != null -> "Copying ${Fs.bytes(copied)} of ${Fs.bytes(c.size)}"
+            c != null -> (batch?.let { (i, n) -> "$i of $n · " } ?: "") + "${Fs.bytes(copied)} of ${Fs.bytes(c.size)}"
+            selecting -> "${chosen.size} selected"
             loading && l == null -> "Asking your phone…"
             error != null -> "Phone"
             l != null && isRoot -> "${Fs.items(l.entries.size)} · on your phone"
@@ -103,13 +129,50 @@ fun PhoneFolderScreen(path: String, nav: NavHostController) {
             item { Caption("Asking your phone over Bluetooth…", color = Palette.sky) }
             return@Page
         }
-        if (isRoot) item { Caption("Tap a file to copy it to Download › From phone on your watch and open it.") }
+        if (selecting) {
+            item {
+                ActionChip(
+                    "Copy ${chosen.size} to watch", Icons.Rounded.Download, { copyChosen() },
+                    secondary = "Into Download › From phone", primary = true, enabled = chosen.isNotEmpty() && c == null,
+                )
+            }
+            item {
+                androidx.compose.foundation.layout.Row(
+                    androidx.compose.ui.Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp, androidx.compose.ui.Alignment.CenterHorizontally),
+                ) {
+                    val files = l.entries.filter { !it.isDir }
+                    androidx.wear.compose.material.CompactChip(
+                        onClick = { if (chosen.size == files.size) chosen.clear() else { chosen.clear(); chosen.addAll(files.map { it.path }) } },
+                        label = { androidx.wear.compose.material.Text(if (chosen.size == files.size && files.isNotEmpty()) "None" else "All") },
+                        colors = androidx.wear.compose.material.ChipDefaults.secondaryChipColors(),
+                    )
+                    androidx.wear.compose.material.CompactChip(
+                        onClick = { selecting = false; chosen.clear() },
+                        label = { androidx.wear.compose.material.Text("Done") },
+                        colors = androidx.wear.compose.material.ChipDefaults.primaryChipColors(),
+                    )
+                }
+            }
+        } else if (isRoot) item { Caption("Tap a file to copy it to the watch and open it. Hold to pick several.") }
         if (l.entries.isEmpty()) item { Caption("Empty folder") }
         items(l.entries, key = { it.path }) { e ->
             EntryChip(
                 e,
-                onClick = { if (e.isDir) nav.navigate(Route.phone(e.path)) else copy(e) },
+                onClick = {
+                    when {
+                        selecting && !e.isDir -> if (e.path in chosen) chosen.remove(e.path) else chosen.add(e.path)
+                        selecting -> Fs.toast(context, "Folders can't be copied yet")
+                        e.isDir -> nav.navigate(Route.phone(e.path))
+                        else -> copy(e)
+                    }
+                },
                 detail = if (e.isDir) (if (e.children < 0) "Can't open" else Fs.items(e.children)) else null,
+                selected = if (selecting && !e.isDir) e.path in chosen else null,
+                onLongClick = if (e.isDir) null else ({
+                    if (!selecting) { selecting = true; chosen.clear() }
+                    if (e.path !in chosen) chosen.add(e.path)
+                }),
             )
         }
         if (isRoot) {

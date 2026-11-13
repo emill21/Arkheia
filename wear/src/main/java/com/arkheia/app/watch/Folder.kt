@@ -148,13 +148,64 @@ fun FolderScreen(dir: File, nav: NavHostController) {
         }
         if (list != null) {
             val media = list.count { it.kind == Kind.Image || it.kind == Kind.Video }
-            if (media > 0) {
+            if (media > 0 && !selecting) {
                 item {
                     ActionChip(
                         "Gallery", Icons.Rounded.PhotoLibrary, { nav.navigate(Route.gallery(dir)) },
                         secondary = "$media ${if (media == 1) "photo or video" else "photos and videos"}",
                         tint = Palette.rose,
                     )
+                }
+            }
+            if (selecting) {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val none = chosen.isEmpty()
+                        RoundButton(Icons.Rounded.ContentCopy, "Copy", {
+                            if (!none) { Clip.copy(chosenFiles()); Fs.toast(context, "Copied ${chosen.size}. Open a folder and tap Paste here"); endSelect() }
+                        }, size = 34.dp)
+                        RoundButton(Icons.Rounded.ContentCut, "Move", {
+                            if (!none) { Clip.cut(chosenFiles()); Fs.toast(context, "Open where they should go and tap Paste here"); endSelect() }
+                        }, size = 34.dp)
+                        RoundButton(Icons.Rounded.FolderZip, "Zip", {
+                            if (!none) { Clip.zip(chosenFiles()); endSelect() }
+                        }, tint = Palette.muted, size = 34.dp)
+                        RoundButton(Icons.Rounded.Delete, "Delete", {
+                            when {
+                                none -> {}
+                                confirmDelete -> { Clip.deleteAll(chosenFiles()); endSelect() }
+                                else -> confirmDelete = true
+                            }
+                        }, tint = Palette.red, size = 34.dp, filled = confirmDelete)
+                    }
+                }
+                item {
+                    Caption(
+                        when {
+                            confirmDelete -> "Tap delete again to delete ${chosen.size}. This can't be undone."
+                            chosen.isEmpty() -> "Tap files to select them"
+                            else -> "${chosen.size} selected"
+                        },
+                        color = if (confirmDelete) Palette.red else Palette.muted,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
+                        CompactChip(
+                            onClick = {
+                                confirmDelete = false
+                                if (chosen.size == list.size) chosen.clear() else { chosen.clear(); chosen.addAll(list.map { it.path }) }
+                            },
+                            label = { Text(if (chosen.size == list.size && list.isNotEmpty()) "None" else "All") },
+                            colors = ChipDefaults.secondaryChipColors(),
+                        )
+                        CompactChip(onClick = { endSelect() }, label = { Text("Done") }, colors = ChipDefaults.primaryChipColors())
+                    }
                 }
             }
             if (list.isEmpty()) item { Caption("Nothing here yet") }
@@ -170,59 +221,13 @@ fun FolderScreen(dir: File, nav: NavHostController) {
                         }
                     },
                     selected = if (selecting) e.path in chosen else null,
-                )
-            }
-        }
-
-        if (list != null && selecting) {
-            item {
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val none = chosen.isEmpty()
-                    RoundButton(Icons.Rounded.ContentCopy, "Copy", {
-                        if (!none) { Clip.copy(chosenFiles()); Fs.toast(context, "Copied ${chosen.size}. Open a folder and tap Paste here"); endSelect() }
-                    }, size = 34.dp)
-                    RoundButton(Icons.Rounded.ContentCut, "Move", {
-                        if (!none) { Clip.cut(chosenFiles()); Fs.toast(context, "Open where they should go and tap Paste here"); endSelect() }
-                    }, size = 34.dp)
-                    RoundButton(Icons.Rounded.FolderZip, "Zip", {
-                        if (!none) { Clip.zip(chosenFiles()); endSelect() }
-                    }, tint = Palette.muted, size = 34.dp)
-                    RoundButton(Icons.Rounded.Delete, "Delete", {
-                        when {
-                            none -> {}
-                            confirmDelete -> { Clip.deleteAll(chosenFiles()); endSelect() }
-                            else -> confirmDelete = true
-                        }
-                    }, tint = Palette.red, size = 34.dp, filled = confirmDelete)
-                }
-            }
-            item {
-                Caption(
-                    when {
-                        confirmDelete -> "Tap delete again to delete ${chosen.size}. This can't be undone."
-                        chosen.isEmpty() -> "Tap files to select them"
-                        else -> "${chosen.size} selected"
+                    onLongClick = {
+                        // Hold a file to start selecting, with it already picked.
+                        confirmDelete = false
+                        if (!selecting) { selecting = true; chosen.clear() }
+                        if (e.path !in chosen) chosen.add(e.path)
                     },
-                    color = if (confirmDelete) Palette.red else Palette.muted,
-                    modifier = Modifier.padding(top = 2.dp),
                 )
-            }
-            item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
-                    CompactChip(
-                        onClick = {
-                            confirmDelete = false
-                            if (chosen.size == list.size) chosen.clear() else { chosen.clear(); chosen.addAll(list.map { it.path }) }
-                        },
-                        label = { Text(if (chosen.size == list.size && list.isNotEmpty()) "None" else "All") },
-                        colors = ChipDefaults.secondaryChipColors(),
-                    )
-                    CompactChip(onClick = { endSelect() }, label = { Text("Done") }, colors = ChipDefaults.primaryChipColors())
-                }
             }
         }
 

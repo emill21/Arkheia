@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8 · Hold to select (2026-11-12)
+
+- Hold a file or folder to start selecting it, then tap more to add them. Copy, move, zip or delete them together
+- The selection buttons now sit at the top of the folder, so you don't have to scroll down to reach them
+- Phone: hold files on your phone to pick several and copy them all to the watch at once
+
 ## 1.7 · Phone (2026-11-12)
 
 - Phone: browse your phone's files from the watch, over Bluetooth. Open it from the new Phone button on the home dial, or from Phone files in Syndesia on the watch
